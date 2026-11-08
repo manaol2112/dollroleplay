@@ -6,6 +6,8 @@ export type Pose = 'stand' | 'held' | 'sit' | 'sleep' | 'wave';
 
 export interface Body {
   age: Age;
+  /** Boys have a straighter shape: no waist, slightly broader shoulders when grown up. */
+  boy: boolean;
   R: number; // head radius
   headY: number; // head centre
   shY: number; // top of shoulders
@@ -30,14 +32,21 @@ const M = {
   adult: { R: 85, leg: 130, torso: 104, shW: 45, waW: 35, hiW: 42, legX: 17, legW: 23, armW: 20 },
 };
 
-export function body(age: Age): Body {
-  const m = M[age] ?? M.kid;
+const BOY = {
+  kid: { shW: 41, waW: 38, hiW: 38 },
+  teen: { shW: 44, waW: 38, hiW: 38 },
+  adult: { shW: 50, waW: 43, hiW: 43, legW: 25, armW: 22 },
+};
+
+export function body(age: Age, boy = false): Body {
+  const m = { ...(M[age] ?? M.kid), ...(boy ? BOY[age] ?? BOY.kid : {}) };
   const ankleY = -14;
   const hipY = ankleY - m.leg;
   const shY = hipY - m.torso;
   const armY = shY + 11;
   return {
     age,
+    boy,
     R: m.R,
     headY: shY - 12 - m.R * 0.82,
     shY,

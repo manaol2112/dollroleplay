@@ -41,6 +41,7 @@ export const SKIN_TONES = [
 export const HAIR_COLORS = [
   '#2b1d1a', '#5a3825', '#8a5a34', '#c98a4b', '#f2cf7a', '#fbe7b0', '#b5432f', '#e86a3a',
   '#ff8fc5', '#c995ff', '#7fb8ff', '#6fe0c0', '#f4f4f8', '#9aa0b0',
+  '#e8a0a8', '#ffc8a0', '#7a4fe0', '#3f6fd8', '#e85d9a', '#3fa58a',
 ];
 
 export const EYE_COLORS = ['#3b2418', '#6b4226', '#3f7fbf', '#3c9a6b', '#7a6a5a', '#8a5ad6', '#d6589a', '#2d2a3a'];

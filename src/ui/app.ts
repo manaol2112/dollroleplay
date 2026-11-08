@@ -43,6 +43,8 @@ export class App {
   private trayTab: TrayTab = 'friends';
   private closePiano: (() => void) | null = null;
   private mapRO: ResizeObserver | null = null;
+  private fadeT = 0;
+  private shownCoins = -1;
 
   constructor() {
     G.on(() => this.refreshHud());
@@ -74,15 +76,21 @@ export class App {
     if (s.kind === 'place') this.showPlace(s.id);
     this.renderHud();
     const fade = document.getElementById('fade')!;
+    if (!fade.firstChild) fade.innerHTML = '<i class="hole"></i>';
     fade.classList.remove('in');
     void fade.offsetWidth;
     fade.classList.add('in');
+    window.clearTimeout(this.fadeT);
+    this.fadeT = window.setTimeout(() => fade.classList.remove('in'), 680);
   }
 
   // ---------------- title ----------------
   private showTitle(): void {
     setWeather(G.s.season);
-    const dolls = G.s.dolls.slice(0, 4);
+    // A mix of girls and boys on the title screen.
+    const girls = G.s.dolls.filter((d) => !d.look.boy);
+    const boys = G.s.dolls.filter((d) => d.look.boy);
+    const dolls = [girls[0], boys[0], girls[1], boys[1] ?? girls[2]].filter(Boolean).slice(0, 4);
     const lineup = dolls.map((d, i) => {
       const x = 800 + (i - (dolls.length - 1) / 2) * 230;
       return `<g transform="translate(${x} ${830 + (i % 2) * 20}) scale(1.05)"><g class="bob" style="animation-delay:${i * 0.4}s">${renderDoll(d.look, { pose: i === 1 ? 'wave' : 'stand', expr: i % 2 ? 'happy' : 'normal' })}</g></g>`;
@@ -289,7 +297,7 @@ export class App {
     return ['friends', ...(p.room ? (['style'] as TrayTab[]) : []), ...p.tray];
   }
 
-  private renderTray(): void {
+  private renderTray(animate = false): void {
     const tray = this.tray;
     if (!tray || this.screen.kind !== 'place') return;
     const scroll = tray.querySelector('.tray-list')?.scrollLeft ?? 0;
@@ -314,12 +322,16 @@ export class App {
       <div class="tray-list">${cards}</div><div class="putaway">${icon('trash')}<span>Drop here to put away</span></div>`;
     const listEl = tray.querySelector('.tray-list') as HTMLDivElement;
     listEl.scrollLeft = scroll;
+    if (animate) {
+      listEl.classList.add('anim');
+      listEl.querySelectorAll<HTMLElement>('.tcard').forEach((c, i) => c.style.setProperty('--i', String(Math.min(i, 12))));
+    }
     tray.onclick = (e) => {
       const t = (e.target as Element).closest('[data-ttab]') as HTMLElement | null;
       if (t) {
         this.trayTab = t.dataset.ttab as TrayTab;
         sound.tap();
-        this.renderTray();
+        this.renderTray(true);
         listEl.scrollLeft = 0;
         tray.querySelector('.tray-list')!.scrollLeft = 0;
       }
@@ -510,7 +522,22 @@ export class App {
 
   private refreshHud(): void {
     const n = this.hud.querySelector('.coins .n');
-    if (n) n.textContent = String(G.s.coins);
+    if (n) {
+      // Roll the number up or down instead of jumping.
+      const from = this.shownCoins < 0 ? G.s.coins : this.shownCoins;
+      const to = G.s.coins;
+      this.shownCoins = to;
+      if (from === to) n.textContent = String(to);
+      else {
+        const t0 = performance.now();
+        const step = (now: number) => {
+          const t = Math.min(1, (now - t0) / 700);
+          n.textContent = String(Math.round(from + (to - from) * (1 - (1 - t) ** 3)));
+          if (t < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      }
+    }
     const badge = this.hud.querySelector('.star-btn .badge') as HTMLElement | null;
     if (badge) {
       const c = claimableCount(G.s) + (dailyReady(G.s) ? 1 : 0);

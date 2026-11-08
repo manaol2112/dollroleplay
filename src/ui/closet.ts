@@ -3,8 +3,8 @@
 import { BLUSH_COLORS, EYE_COLORS, HAIR_COLORS, LIP_COLORS, PALETTE, SHADOW_COLORS, SKIN_TONES, dark, luma } from '../art/color';
 import { PATTERNS, type Pattern } from '../art/defs';
 import { EYE_STYLES, HAIR, MOUTHS, STICKERS, renderDoll } from '../art/doll';
-import { WEAR_BY_ID, sparkleD, wearFor } from '../art/wear';
-import { randomLook, wornOf } from '../data/looks';
+import { WEAR_BY_ID, sparkleD, wearGroups } from '../art/wear';
+import { BOY_HAIR, BOY_NAMES, GIRL_NAMES, randomLook, wornOf } from '../data/looks';
 import { MAX_DOLLS } from '../data/state';
 import { sound } from '../engine/audio';
 import { burst } from '../engine/particles';
@@ -31,11 +31,19 @@ const TABS: { id: TabId; name: string; icon: string }[] = [
   { id: 'back', name: 'Wings & Bags', icon: 'wings' },
 ];
 const SALON_TABS: TabId[] = ['hair', 'makeup', 'face', 'head'];
-const NAMES = ['Ava', 'Zoe', 'Coco', 'Bella', 'Luna', 'Sunny', 'Ruby', 'Daisy', 'Nina', 'Ellie', 'Kiki', 'Pearl', 'Dad', 'Grandma', 'Max', 'Leo', 'Ivy', 'Willow'];
+/** Switching between girl and boy swaps to a fitting hairstyle the first time, keeping everything else. */
+function setKind(l: Look, boy: boolean): void {
+  if (!!l.boy === boy) return;
+  l.boy = boy;
+  if (boy && !BOY_HAIR.includes(l.hair)) l.hair = 'short';
+  if (!boy && ['buzz', 'flattop', 'mohawk', 'spiky', 'sidepart'].includes(l.hair)) l.hair = 'long';
+}
 
 interface Card {
   key: string;
   html: string;
+  /** Drawn only when the card scrolls into view, so big tabs open instantly. */
+  thumb?: () => string;
   label?: string;
   selected: boolean;
   lockKey?: string;
@@ -77,6 +85,7 @@ export function openCloset(opts: ClosetOpts = {}): void {
       <div class="doll-view"></div>
       <div class="stage-bar">
         <button class="chip name-chip" data-act="rename">${icon('rename')}<span class="nm"></span></button>
+        <div class="age-chips kind-chips"><button class="chip kind" data-kind="girl">Girl</button><button class="chip kind" data-kind="boy">Boy</button></div>
         <div class="age-chips">${(['kid', 'teen', 'adult'] as const).map((a) => `<button class="chip age" data-age="${a}">${a === 'adult' ? 'Grown-up' : a === 'kid' ? 'Kid' : 'Teen'}</button>`).join('')}</div>
         <button class="round-btn" data-act="random" title="Surprise me">${icon('dice')}</button>
         <button class="round-btn" data-act="delete" title="Say goodbye">${icon('trash')}</button>
@@ -106,18 +115,31 @@ export function openCloset(opts: ClosetOpts = {}): void {
       (G.s.dolls.length < MAX_DOLLS && mode === 'closet' ? `<button class="ava add" data-act="add" title="New friend">${icon('plus')}</button>` : '');
   }
 
+  let calm = 0;
   function renderDollView(pop = false): void {
     view.innerHTML = `<svg viewBox="-210 -480 420 500" preserveAspectRatio="xMidYMax meet"><ellipse cx="0" cy="0" rx="110" ry="22" fill="url(#g-ground)"/><g class="bob"><g class="art">${renderDoll(doll.look, { expr: pop ? 'happy' : 'normal' })}</g></g></svg>`;
     if (pop) {
-      view.classList.remove('pop');
+      view.classList.remove('twirl');
       void view.offsetWidth;
-      view.classList.add('pop');
+      view.classList.add('twirl');
+      const poof = document.createElement('i');
+      poof.className = 'poof';
+      view.appendChild(poof);
+      window.setTimeout(() => poof.remove(), 800);
+      view.style.setProperty('--lx', '5px');
+      view.style.setProperty('--ly', '1px');
       const r = view.getBoundingClientRect();
       burst('sparkle', r.left + r.width / 2, r.top + r.height * 0.45, 10);
-      window.setTimeout(() => renderDollView(false), 900);
+      window.clearTimeout(calm);
+      calm = window.setTimeout(() => renderDollView(false), 950);
+      window.setTimeout(() => {
+        view.style.removeProperty('--lx');
+        view.style.removeProperty('--ly');
+      }, 1400);
     }
     q<HTMLSpanElement>('.nm').textContent = doll.name;
     root.querySelectorAll<HTMLButtonElement>('.age').forEach((b) => b.classList.toggle('on', b.dataset.age === doll.look.age));
+    root.querySelectorAll<HTMLButtonElement>('.kind').forEach((b) => b.classList.toggle('on', (b.dataset.kind === 'boy') === !!doll.look.boy));
   }
 
   function renderTabs(): void {
@@ -146,6 +168,11 @@ export function openCloset(opts: ClosetOpts = {}): void {
     switch (t) {
       case 'body':
         return [
+          {
+            title: 'Girl or boy',
+            cards: ([false, true] as const).map((boy) => ({ key: boy ? 'boy' : 'girl', html: lookThumb({ ...L, boy, hair: boy === !!L.boy ? L.hair : boy ? 'short' : 'long' }, slotBox({ ...L, age: 'adult' }, 'full')), label: boy ? 'Boy' : 'Girl', selected: !!L.boy === boy })),
+            pick: (k) => set((l) => setKind(l, k === 'boy')),
+          },
           { title: 'Skin', cards: sw(SKIN_TONES, L.skin), pick: (k) => set((l) => (l.skin = k)) },
           {
             title: 'Grow up',
@@ -187,14 +214,12 @@ export function openCloset(opts: ClosetOpts = {}): void {
         ];
       default: {
         const slot = wornSlot(t)!;
-        const items = wearFor(slot);
         const cur = L.wear[slot]?.id ?? null;
-        const optional = slot !== 'top' && slot !== 'bottom' ? true : true;
         const preview = (id: string | null): string => {
           const l: Look = { ...L, wear: { ...L.wear } };
           if (id) {
-            const prevColor = l.wear[slot]?.id === id ? l.wear[slot]!.color : WEAR_BY_ID[id].color;
-            l.wear[slot] = wornOf(id, prevColor, l.wear[slot]?.id === id ? l.wear[slot]!.pattern : 'none');
+            const same = l.wear[slot]?.id === id;
+            l.wear[slot] = wornOf(id, same ? l.wear[slot]!.color : undefined, same ? l.wear[slot]!.pattern : undefined);
             if (slot === 'dress') {
               delete l.wear.top;
               delete l.wear.bottom;
@@ -205,46 +230,85 @@ export function openCloset(opts: ClosetOpts = {}): void {
           return lookThumb(l, box, { headOnly: slot === 'face' || slot === 'head' });
         };
         const season = G.s.season;
-        const cards: Card[] = [
-          ...(optional ? [{ key: 'none', html: `<span class="none-x">${icon('close')}</span>`, selected: cur === null, label: 'None' }] : []),
-          ...items.map((w) => ({ key: w.id, html: preview(w.id) + (w.tags?.includes(season) ? `<span class="season-tag">${icon(season === 'winter' ? 'snow' : season === 'fall' ? 'leaf' : season === 'summer' ? 'sun' : 'flower')}</span>` : ''), selected: cur === w.id, lockKey: w.price ? w.id : undefined, label: w.name })),
-        ];
-        return [{
-          title: TABS.find((x) => x.id === t)?.name ?? '',
-          cards,
-          pick: (k) => {
-            const l = doll.look;
-            if (k === 'none') delete l.wear[slot];
-            else {
-              const keepColor = l.wear[slot]?.id === k;
-              l.wear[slot] = keepColor ? l.wear[slot] : wornOf(k);
-              if (slot === 'dress') {
-                delete l.wear.top;
-                delete l.wear.bottom;
-              }
-              if ((slot === 'top' || slot === 'bottom') && l.wear.dress) {
-                delete l.wear.dress;
-                if (!l.wear.top) l.wear.top = wornOf('tee');
-                if (!l.wear.bottom) l.wear.bottom = wornOf('pleated');
-              }
+        const seasonIcon = icon(season === 'winter' ? 'snow' : season === 'fall' ? 'leaf' : season === 'summer' ? 'sun' : 'flower');
+        const pick = (k: string) => {
+          const l = doll.look;
+          if (k === 'none') delete l.wear[slot];
+          else {
+            const keepColor = l.wear[slot]?.id === k;
+            l.wear[slot] = keepColor ? l.wear[slot] : wornOf(k);
+            if (slot === 'dress') {
+              delete l.wear.top;
+              delete l.wear.bottom;
             }
-            sound.pop();
-            G.bump('equip');
-            touch();
-            renderAll(true);
-          },
-        }];
+            if ((slot === 'top' || slot === 'bottom') && l.wear.dress) {
+              delete l.wear.dress;
+              if (!l.wear.top) l.wear.top = wornOf('tee');
+              if (!l.wear.bottom) l.wear.bottom = wornOf('pleated');
+            }
+          }
+          sound.pop();
+          G.bump('equip');
+          touch();
+          renderDollView(true);
+          renderRoster();
+          markSelected(slot);
+          renderPaint();
+        };
+        return wearGroups(slot).map(([group, items], gi) => ({
+          title: group,
+          cards: [
+            ...(gi === 0 ? [{ key: 'none', html: `<span class="none-x">${icon('close')}</span>`, selected: cur === null, label: 'None' }] : []),
+            ...items.map((w) => ({
+              key: w.id, html: w.tags?.includes(season) ? `<span class="season-tag">${seasonIcon}</span>` : '', thumb: () => preview(w.id),
+              selected: cur === w.id, lockKey: w.price ? w.id : undefined, label: w.name,
+            })),
+          ],
+          pick,
+        }));
       }
     }
   }
 
+  /** Moves the checkmark without redrawing every thumbnail. */
+  function markSelected(slot: Slot): void {
+    const cur = doll.look.wear[slot]?.id ?? 'none';
+    sectionsEl.querySelectorAll<HTMLElement>('.card').forEach((b) => b.classList.toggle('on', b.dataset.key === cur));
+  }
+
+  /** Redraws just the worn item's card after a color or pattern change. */
+  function redrawCard(slot: Slot): void {
+    const id = doll.look.wear[slot]?.id;
+    const b = id ? sectionsEl.querySelector<HTMLElement>(`.card[data-key="${id}"]`) : null;
+    const secs = (sectionsEl as HTMLDivElement & { _secs?: Section[] })._secs;
+    const c = b && secs ? secs[Number(b.dataset.sec)]?.cards.find((x) => x.key === id) : undefined;
+    const svg = b?.querySelector(':scope > svg');
+    if (c?.thumb && svg) svg.outerHTML = c.thumb();
+  }
+
+  let lazy: IntersectionObserver | null = null;
   function renderSections(): void {
     const secs = sectionsFor(tab);
-    sectionsEl.innerHTML = secs.map((s, si) => `<div class="sec"><h3>${esc(s.title)}</h3><div class="grid${s.cards[0]?.swatch ? ' swatches' : ''}">${s.cards.map((c) => {
+    const jump = secs.length > 2 && !secs[0].cards[0]?.swatch
+      ? `<div class="jump">${secs.map((s, si) => `<button class="chip" data-jump="${si}">${esc(s.title)}</button>`).join('')}</div>` : '';
+    let n = 0;
+    sectionsEl.innerHTML = jump + secs.map((s, si) => `<div class="sec" data-secid="${si}"><h3>${esc(s.title)}<small>${s.cards.filter((c) => c.key !== 'none').length}</small></h3><div class="grid${s.cards[0]?.swatch ? ' swatches' : ''}">${s.cards.map((c) => {
       const locked = c.lockKey && !G.owns(c.lockKey);
-      return `<button class="card${c.selected ? ' on' : ''}${locked ? ' locked' : ''}${c.swatch ? ' swatch' : ''}" data-sec="${si}" data-key="${esc(c.key)}" ${c.label ? `title="${esc(c.label)}"` : ''}>${c.html}${locked ? `<span class="price">${icon('coin')}${G.price(c.lockKey!)}</span>` : ''}</button>`;
+      return `<button class="card${c.selected ? ' on' : ''}${locked ? ' locked' : ''}${c.swatch ? ' swatch' : ''}" style="--i:${Math.min(n++, 14)}" data-sec="${si}" data-key="${esc(c.key)}" ${c.thumb ? 'data-lazy="1"' : ''} ${c.label ? `title="${esc(c.label)}"` : ''}>${c.thumb ? '<i class="thumb-wait"></i>' : ''}${c.html}${locked ? `<span class="price">${icon('coin')}${G.price(c.lockKey!)}</span>` : ''}</button>`;
     }).join('')}</div></div>`).join('');
     (sectionsEl as HTMLDivElement & { _secs?: Section[] })._secs = secs;
+    lazy?.disconnect();
+    lazy = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const b = e.target as HTMLElement;
+        lazy!.unobserve(b);
+        const c = secs[Number(b.dataset.sec)]?.cards.find((x) => x.key === b.dataset.key);
+        const wait = b.querySelector('.thumb-wait');
+        if (c?.thumb && wait) wait.outerHTML = c.thumb();
+      }
+    }, { root: sectionsEl, rootMargin: '300px 0px' });
+    sectionsEl.querySelectorAll('[data-lazy]').forEach((b) => lazy!.observe(b));
     renderPaint();
   }
 
@@ -277,10 +341,11 @@ export function openCloset(opts: ClosetOpts = {}): void {
       return null;
     }
     const used = new Set(G.s.dolls.map((d) => d.name));
-    const name = NAMES.find((n) => !used.has(n)) ?? `Friend ${G.s.dolls.length + 1}`;
+    const boy = Math.random() < 0.5;
+    const name = (boy ? BOY_NAMES : GIRL_NAMES).find((n) => !used.has(n)) ?? `Friend ${G.s.dolls.length + 1}`;
     let n = G.s.dolls.length + 1;
     while (G.s.dolls.some((d) => d.id === `d${n}`)) n++;
-    const d: Doll = { id: `d${n}`, name, look: randomLook(G.owns), place, x: 700 + Math.random() * 200, y: 760, seat: null };
+    const d: Doll = { id: `d${n}`, name, look: randomLook(G.owns, undefined, boy), place, x: 700 + Math.random() * 200, y: 760, seat: null };
     G.s.dolls.push(d);
     G.bump('createDoll');
     sound.sparkle();
@@ -295,7 +360,16 @@ export function openCloset(opts: ClosetOpts = {}): void {
       sound.tap();
       renderTabs();
       sectionsEl.scrollTop = 0;
+      sectionsEl.classList.add('anim');
       renderSections();
+      window.setTimeout(() => sectionsEl.classList.remove('anim'), 700);
+      return;
+    }
+    const jb = t.closest('[data-jump]') as HTMLElement | null;
+    if (jb) {
+      const sec = sectionsEl.querySelector(`[data-secid="${jb.dataset.jump}"]`) as HTMLElement | null;
+      if (sec) sectionsEl.scrollTo({ top: sec.offsetTop - sectionsEl.offsetTop - 6, behavior: 'smooth' });
+      sound.tap();
       return;
     }
     const av = t.closest('[data-doll]') as HTMLElement | null;
@@ -315,7 +389,7 @@ export function openCloset(opts: ClosetOpts = {}): void {
       if (!c) return;
       if (c.lockKey && !G.owns(c.lockKey)) {
         const price = G.price(c.lockKey);
-        confirmBox(`Buy ${c.label ?? 'this'}?`, `It costs <b class="coin-text">${icon('coin')}${price}</b>. You have ${G.s.coins}.`, `${icon('bag')}<span>Buy</span>`, c.html, () => {
+        confirmBox(`Buy ${c.label ?? 'this'}?`, `It costs <b class="coin-text">${icon('coin')}${price}</b>. You have ${G.s.coins}.`, `${icon('bag')}<span>Buy</span>`, c.thumb ? c.thumb() : c.html, () => {
           if (G.buy(c.lockKey!)) {
             const r = card.getBoundingClientRect();
             burst('confetti', r.left + r.width / 2, r.top + r.height / 2, 30);
@@ -336,10 +410,21 @@ export function openCloset(opts: ClosetOpts = {}): void {
       if (pat) w.pattern = pat.dataset.pat as Pattern;
       sound.spray();
       touch();
-      renderAll(false);
+      renderDollView(false);
+      renderRoster();
+      redrawCard(slot);
+      renderPaint();
       return;
     }
     const act = (t.closest('[data-act]') as HTMLElement | null)?.dataset.act;
+    const kindB = t.closest('[data-kind]') as HTMLElement | null;
+    if (kindB && root.querySelector('.stage-bar')!.contains(kindB)) {
+      setKind(doll.look, kindB.dataset.kind === 'boy');
+      sound.boing();
+      touch();
+      renderAll(true);
+      return;
+    }
     const ageB = t.closest('[data-age]') as HTMLElement | null;
     if (ageB) {
       doll.look.age = ageB.dataset.age as Look['age'];
@@ -358,7 +443,7 @@ export function openCloset(opts: ClosetOpts = {}): void {
     }
     if (act === 'random') {
       const age = doll.look.age;
-      doll.look = randomLook(G.owns, age);
+      doll.look = randomLook(G.owns, age, !!doll.look.boy);
       sound.sparkle();
       G.bump('equip');
       touch();
@@ -391,7 +476,19 @@ export function openCloset(opts: ClosetOpts = {}): void {
     }
   }
 
+  const idle = window.setInterval(() => {
+    if (Math.random() < 0.5) {
+      view.classList.remove('idle-wave');
+      void view.offsetWidth;
+      view.classList.add('idle-wave');
+    } else {
+      view.style.setProperty('--lx', `${(Math.random() * 2 - 1) * 5}px`);
+      window.setTimeout(() => view.style.removeProperty('--lx'), 1200);
+    }
+  }, 3200);
+
   function close(): void {
+    window.clearInterval(idle);
     finishSalon();
     sound.tap();
     root.classList.remove('show');

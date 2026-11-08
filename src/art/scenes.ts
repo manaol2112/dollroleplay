@@ -93,7 +93,7 @@ export function landscape(s: Season, horizon: number, opts: { trees?: number[]; 
   const id = uid('sky');
   let g = skyDefs(id, s) + full(`url(#${id})`);
   g += sun(opts.sunX ?? 1340, 130, s);
-  g += cloud(260, 120, 1.0, 120) + cloud(820, 70, 0.8, -90) + cloud(1500, 210, 0.7, 70);
+  g += cloud(260, 120, 1.0, 120) + cloud(820, 70, 0.8, -90) + cloud(1500, 210, 0.7, 70) + birds(s);
   g += P(`M-600 ${horizon - 40} Q-200 ${horizon - 180} 200 ${horizon - 60} Q600 ${horizon - 190} 1000 ${horizon - 70} Q1400 ${horizon - 200} 1800 ${horizon - 60} Q2000 ${horizon - 120} 2200 ${horizon - 80} L2200 ${horizon + 40} L-600 ${horizon + 40}Z`, L.hill1);
   g += P(`M-600 ${horizon - 10} Q-100 ${horizon - 110} 400 ${horizon - 20} Q900 ${horizon - 120} 1300 ${horizon - 20} Q1700 ${horizon - 110} 2200 ${horizon - 30} L2200 ${horizon + 40} L-600 ${horizon + 40}Z`, L.hill2);
   for (const [i, x] of (opts.trees ?? [-200, 120, 1480, 1800]).entries()) g += seasonTree(x, horizon + 10, 0.8, s, i);
@@ -198,13 +198,15 @@ export function windowArt(x: number, y: number, w: number, h: number, s: Season,
   let g = R(x - 18, y - 18, w + 36, h + 36, 16, fr) + R(x - 18, y - 18, w + 36, h + 36, 16, 'url(#g-shadeY)') + view + R(x, y, w, h, 10, 'url(#g-glass)');
   g += R(x + w / 2 - 6, y, 12, h, 3, fr) + R(x, y + h / 2 - 6, w, 12, 3, fr);
   g += R(x - 34, y + h + 10, w + 68, 22, 8, fr) + R(x - 34, y + h + 26, w + 68, 8, 4, dark(fr, 0.1));
-  // curtains
+  // curtains (sway gently)
+  g += `<g class="curtains" style="transform-origin:${f(x + w / 2)}px ${f(y - 50)}px">`;
   const cw = w * 0.32;
   g += P(`M${x - 50} ${y - 46} L${x - 50 + cw} ${y - 46} Q${x - 50 + cw * 0.8} ${y + h * 0.45} ${x - 50 + cw * 0.35} ${y + h * 0.5} Q${x - 30 + cw * 0.3} ${y + h * 0.8} ${x - 20} ${y + h + 40} L${x - 56} ${y + h + 40}Z`, curtain);
   g += P(`M${x + w + 50} ${y - 46} L${x + w + 50 - cw} ${y - 46} Q${x + w + 50 - cw * 0.8} ${y + h * 0.45} ${x + w + 50 - cw * 0.35} ${y + h * 0.5} Q${x + w + 30 - cw * 0.3} ${y + h * 0.8} ${x + w + 20} ${y + h + 40} L${x + w + 56} ${y + h + 40}Z`, curtain);
   g += P(`M${x - 50} ${y - 46} L${x - 50 + cw} ${y - 46} Q${x - 50 + cw * 0.8} ${y + h * 0.45} ${x - 50 + cw * 0.35} ${y + h * 0.5} Q${x - 30 + cw * 0.3} ${y + h * 0.8} ${x - 20} ${y + h + 40} L${x - 56} ${y + h + 40}Z`, 'url(#g-shadeX)');
   g += P(`M${x + w + 50} ${y - 46} L${x + w + 50 - cw} ${y - 46} Q${x + w + 50 - cw * 0.8} ${y + h * 0.45} ${x + w + 50 - cw * 0.35} ${y + h * 0.5} Q${x + w + 30 - cw * 0.3} ${y + h * 0.8} ${x + w + 20} ${y + h + 40} L${x + w + 56} ${y + h + 40}Z`, 'url(#g-shadeX)');
   g += `<g transform="translate(${x - 50 + cw * 0.4} ${y + h * 0.5}) scale(0.7)">${bowG(0, 0, 1, dark(curtain, 0.15))}</g><g transform="translate(${x + w + 50 - cw * 0.4} ${y + h * 0.5}) scale(0.7)">${bowG(0, 0, 1, dark(curtain, 0.15))}</g>`;
+  g += '</g>';
   g += R(x - 80, y - 60, w + 160, 18, 9, '#c9a27e') + C(x - 80, y - 51, 14, '#c9a27e') + C(x + w + 80, y - 51, 14, '#c9a27e');
   g += P(`M${x - 60} ${y - 46} ${Array.from({ length: 8 }, (_, i) => `Q${f(x - 60 + ((w + 120) * (i + 0.5)) / 8)} ${y - 4} ${f(x - 60 + ((w + 120) * (i + 1)) / 8)} ${y - 46}`).join(' ')}Z`, light(curtain, 0.1));
   return g;
@@ -460,6 +462,7 @@ export function townArt(s: Season): string {
   g += P('M780 300 Q760 450 800 620 L840 620 Q820 450 820 300Z', road);
   for (let x = -500; x < 2200; x += 120) g += R(x, 624 + 20 * Math.sin(x / 300), 50, 6, 3, '#fff', 'opacity="0.8"');
   for (const [x, y, sc] of [[40, 560, 0.7], [1560, 580, 0.75], [1060, 330, 0.55], [560, 330, 0.55], [-120, 880, 0.9], [1720, 900, 0.9]] as const) g += seasonTree(x, y, sc, s, Math.round(x) % 3);
+  g += townLife(s);
   const art: Record<string, string> = { home: homeBuilding(s), school: schoolBuilding(s), theater: theaterBuilding(s), playground: playgroundMini(s), salon: salonBuilding(s), boutique: boutiqueBuilding(s) };
   for (const sp of MAP_SPOTS) {
     const sc = sp.id === 'school' ? 0.95 : sp.id === 'playground' ? 0.9 : 0.85;
@@ -468,4 +471,80 @@ export function townArt(s: Season): string {
   if (s === 'winter') g += `<g transform="translate(560 640) scale(0.5)">${C(0, -60, 62, '#fff')}${C(0, -160, 46, '#fff')}${C(-12, -168, 5, '#2d2a3a')}${C(12, -168, 5, '#2d2a3a')}${P('M0 -158 L30 -152 L0 -148Z', '#ff8a3d')}${R(-44, -130, 88, 16, 8, '#e8384f')}</g>`;
   if (s === 'summer') g += `<g transform="translate(1060 660)">${E(0, 0, 90, 26, '#7cd8ff')}${E(0, -4, 80, 20, '#a8e6ff')}${C(20, -6, 10, '#ff7eb6')}</g>`;
   return g;
+}
+
+// ---------------- living details: light, birds, butterflies, traffic ----------------
+const BEAM_TINT: Record<Season, string> = { spring: '#fff6fb', summer: '#fff3c4', fall: '#ffe2b8', winter: '#e8f2ff' };
+
+/** A soft sunbeam falling from a window with dust sparkling in it (drawn in front of everything). */
+export function sunbeam(x: number, y: number, w: number, h: number, s: Season, floorY: number): string {
+  const id = uid('beam');
+  const c = BEAM_TINT[s];
+  const drop = floorY + 140;
+  const shift = -(drop - (y + h)) * 0.55;
+  let g = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity="0.38"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></linearGradient></defs>`;
+  g += `<path d="M${x} ${y + h} L${x + w} ${y + h} L${x + w + shift + 60} ${drop} L${x + shift - 60} ${drop}Z" fill="url(#${id})"><animate attributeName="opacity" values="0.75;1;0.75" dur="6s" repeatCount="indefinite"/></path>`;
+  for (let i = 0; i < 10; i++) {
+    const t = (i + 0.5) / 10;
+    const px = x + w * ((i * 0.618) % 1) + shift * t;
+    const py = y + h + (drop - y - h) * t * 0.85;
+    const dur = 5 + (i % 4) * 1.5;
+    g += `<circle cx="${f(px)}" cy="${f(py)}" r="${2 + (i % 3)}" fill="#fff" opacity="0.7"><animate attributeName="cy" values="${f(py)};${f(py - 40)};${f(py)}" dur="${dur}s" repeatCount="indefinite"/><animate attributeName="cx" values="${f(px)};${f(px + 18)};${f(px)}" dur="${dur * 1.3}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0.8;0" dur="${dur}s" repeatCount="indefinite"/></circle>`;
+  }
+  return g;
+}
+
+/** Little birds flapping across the sky. */
+export function birds(s: Season, y = 170): string {
+  if (s === 'winter') return '';
+  let g = '';
+  for (let i = 0; i < 3; i++) {
+    const dur = 22 + i * 7;
+    const yy = y + i * 46;
+    const wing = `<path fill="none" stroke="#5a4a6a" stroke-width="4" stroke-linecap="round"><animate attributeName="d" values="M-14 0 Q-7 -9 0 0 Q7 -9 14 0;M-14 -2 Q-7 6 0 0 Q7 6 14 -2;M-14 0 Q-7 -9 0 0 Q7 -9 14 0" dur="${0.5 + i * 0.1}s" repeatCount="indefinite"/></path>`;
+    g += `<g><animateTransform attributeName="transform" type="translate" values="-500 ${yy};2100 ${yy - 60}" dur="${dur}s" begin="${-i * 9}s" repeatCount="indefinite"/><g transform="scale(${1 - i * 0.18})">${wing}</g></g>`;
+  }
+  return g;
+}
+
+/** Butterflies fluttering near the ground (spring and summer). */
+export function butterflies(s: Season): string {
+  if (s !== 'spring' && s !== 'summer') return '';
+  const cols = ['#ff7eb6', '#ffd36b', '#c99bff', '#7cc8ff'];
+  let g = '';
+  for (let i = 0; i < 4; i++) {
+    const cx = 200 + i * 380;
+    const cy = 520 + (i % 2) * 90;
+    const path = `M${cx} ${cy} C${cx + 120} ${cy - 120} ${cx + 220} ${cy + 60} ${cx + 80} ${cy + 40} S${cx - 140} ${cy - 90} ${cx} ${cy}`;
+    const c = cols[i];
+    const wings = `<g><animateTransform attributeName="transform" type="scale" values="1 1;0.25 1;1 1" dur="0.35s" repeatCount="indefinite"/><path d="M0 0 C-10 -16 -22 -10 -16 0 C-12 6 -4 4 0 0Z M0 0 C10 -16 22 -10 16 0 C12 6 4 4 0 0Z" fill="${c}"/><path d="M0 1 C-8 6 -12 14 -6 14 C-2 14 0 8 0 1Z M0 1 C8 6 12 14 6 14 C2 14 0 8 0 1Z" fill="${dark(c, 0.15)}"/></g>`;
+    g += `<g><animateMotion path="${path}" dur="${9 + i * 2}s" begin="${-i * 2}s" repeatCount="indefinite"/>${wings}<rect x="-1.5" y="-6" width="3" height="16" rx="1.5" fill="#4a3f5e"/></g>`;
+  }
+  return g;
+}
+
+const ROAD = 'M-600 630 Q200 570 800 630 Q1400 690 2200 620';
+function car(body: string, top: string): string {
+  return `<g transform="translate(0 -26)"><rect x="-38" y="-10" width="76" height="26" rx="12" fill="${body}"/><path d="M-22 -10 Q-16 -30 4 -30 L16 -30 Q28 -30 30 -10Z" fill="${top}"/><path d="M-14 -12 Q-10 -25 2 -25 L10 -25 Q20 -25 22 -12Z" fill="#d9efff"/>` +
+    `<circle cx="-22" cy="16" r="9" fill="#4a4a5e"/><circle cx="-22" cy="16" r="4" fill="#c9cfdd"/><circle cx="22" cy="16" r="9" fill="#4a4a5e"/><circle cx="22" cy="16" r="4" fill="#c9cfdd"/><circle cx="36" cy="0" r="4" fill="#fff6c8"/></g>`;
+}
+
+/** Cars driving along the town road and a hot-air balloon drifting by. */
+export function townLife(s: Season): string {
+  let g = `<g><animateMotion path="${ROAD}" dur="26s" repeatCount="indefinite" rotate="auto"/>${car('#ff7eb6', '#ff9ec7')}</g>`;
+  g += `<g><animateMotion path="${ROAD}" dur="34s" begin="-15s" repeatCount="indefinite" rotate="auto" keyPoints="1;0" keyTimes="0;1" calcMode="linear"/><g transform="scale(-1 1)">${car('#7cc8ff', '#a8d8ff')}</g></g>`;
+  const bx = 1060;
+  g += `<g><animateTransform attributeName="transform" type="translate" values="0 0;30 -24;0 0" dur="9s" repeatCount="indefinite"/><g transform="translate(${bx} 150) scale(0.7)">` +
+    `<path d="M0 -70 C46 -70 56 -20 30 14 L12 34 L-12 34 L-30 14 C-56 -20 -46 -70 0 -70Z" fill="#ff9ec7"/><path d="M0 -70 C18 -70 22 -20 12 14 L6 34 L-6 34 L-12 14 C-22 -20 -18 -70 0 -70Z" fill="#ffd36b"/>` +
+    `<path d="M-12 34 L-10 52 M12 34 L10 52" stroke="#8a5a3c" stroke-width="2"/><rect x="-14" y="50" width="28" height="18" rx="4" fill="#c98a5a"/></g></g>`;
+  return g + birds(s, 120);
+}
+
+/** Sunbeams for the indoor places that have a window. */
+export function roomLight(place: string, s: Season): string {
+  const win: Record<string, [number, number, number, number]> = {
+    bedroom: [1120, 120, 260, 250], kitchen: [660, 90, 280, 200], living: [560, 100, 420, 280], school: [1330, 150, 200, 230], boutique: [650, 150, 300, 220],
+  };
+  const w = win[place];
+  return w ? sunbeam(w[0], w[1], w[2], w[3], s, 600) : '';
 }

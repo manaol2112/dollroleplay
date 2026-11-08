@@ -349,7 +349,7 @@ const LIVING: FurnDef[] = [
       const leaves = [[-50, -170, -30], [40, -190, 25], [-10, -210, -5], [55, -130, 50], [-60, -120, -55], [10, -160, 10]];
       for (const [x, y, r] of leaves) s += `<g transform="rotate(${r} ${x} ${y})">${E(x, y, 26, 48, '#3fbf8f')}${E(x, y, 26, 48, 'url(#g-shadeX)')}${Ln(x, y + 40, x, y - 40, '#2f9a70', 2)}</g>`;
       for (const [x, y] of leaves) s += Ln(0, -70, x * 0.8, y + 30, '#2f9a70', 4);
-      return s + cloth('M-50 -80 L50 -80 L38 0 L-38 0Z', c, 'dots') + R(-56, -88, 112, 16, 6, dark(c, 0.1));
+      return `<g class="sway">${s}</g>` + cloth('M-50 -80 L50 -80 L38 0 L-38 0Z', c, 'dots') + R(-56, -88, 112, 16, 6, dark(c, 0.1));
     },
   },
   {
@@ -482,7 +482,7 @@ const OUTDOOR: FurnDef[] = [
       if (se === 'summer') s += C(-40, -230, 9, '#e8384f') + C(50, -270, 9, '#e8384f') + C(20, -200, 9, '#e8384f');
       if (se === 'spring') for (const [x, y] of [[-50, -250], [40, -290], [60, -200], [-20, -190], [-80, -200], [10, -330]]) s += flowerG(x, y, 12, '#fff', '#ff9ec7');
       if (se === 'fall') s += E(-90, -6, 14, 7, '#ff8a3d') + E(80, -4, 12, 6, '#ffc23d') + E(30, -2, 12, 6, '#e8573d');
-      return s;
+      return `<g class="tree-sway">${s}</g>`;
     },
   },
 ];

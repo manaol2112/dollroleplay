@@ -20,12 +20,25 @@ describe('art', () => {
     for (const w of WEAR) {
       for (const age of ['kid', 'teen', 'adult'] as const) {
         for (const pose of ['stand', 'held', 'sit', 'sleep', 'wave'] as const) {
-          const look: Look = { ...baseLook(), age, wear: { ...baseLook().wear, [w.slot]: { id: w.id, color: w.color, pattern: 'stars' } } };
+          const look: Look = { ...baseLook(), age, boy: pose === 'held' || pose === 'sit', wear: { ...baseLook().wear, [w.slot]: { id: w.id, color: w.color, pattern: 'stars' } } };
           const svg = renderDoll(look, { pose });
           expect(svg, `${w.id} ${age} ${pose}`).not.toMatch(bad);
           expect(svg.length).toBeGreaterThan(500);
         }
       }
+    }
+  });
+
+  it('has at least 100 choices in every closet tab, with unique ids', () => {
+    const ids = new Set<string>();
+    for (const w of WEAR) {
+      expect(ids.has(w.id), `duplicate ${w.id}`).toBe(false);
+      ids.add(w.id);
+      expect(w.name.length, w.id).toBeGreaterThan(0);
+      expect(w.price, w.id).toBeGreaterThanOrEqual(0);
+    }
+    for (const slot of ['top', 'bottom', 'dress', 'outer', 'shoes', 'head', 'face', 'neck', 'hand', 'back'] as const) {
+      expect(WEAR.filter((w) => w.slot === slot).length, slot).toBeGreaterThanOrEqual(100);
     }
   });
 
@@ -62,10 +75,19 @@ describe('art', () => {
   });
 });
 
+describe('thumbnails', () => {
+  it('strips animations from thumbnails', async () => {
+    const { still } = await import('../src/ui/dom');
+    const svg = '<g><animate attributeName="opacity" values="0;1" dur="1s"/><circle r="2"><animateTransform attributeName="transform" type="rotate" values="0;360" dur="2s"></animateTransform></circle><animateMotion path="M0 0" dur="1s"/></g>';
+    expect(still(svg)).toBe('<g><circle r="2"></circle></g>');
+  });
+});
+
 describe('saving', () => {
   it('starts with friends, rooms and challenges', () => {
     const s = newState();
-    expect(s.dolls.length).toBe(4);
+    expect(s.dolls.length).toBe(6);
+    expect(s.dolls.filter((d) => d.look.boy).map((d) => d.name).sort()).toEqual(['Dad', 'Leo']);
     expect(s.coins).toBe(START_COINS);
     expect(Object.keys(s.scenes).sort()).toEqual(Object.keys(PLACES).sort());
     expect(s.ch.list.length).toBe(ACTIVE_CHALLENGES);
@@ -81,6 +103,17 @@ describe('saving', () => {
     expect(back.dolls[0].name).toBe('Sparkle');
     expect(back.dolls[0].seat).toEqual(s.dolls[0].seat);
     expect(back.scenes.kitchen.items.length).toBe(s.scenes.kitchen.items.length);
+  });
+
+  it('invites Leo and Dad into saves made before boys existed', () => {
+    const old = JSON.parse(JSON.stringify(newState()));
+    old.dolls = old.dolls.filter((d: { look: { boy?: boolean } }) => !d.look.boy);
+    delete old.boysAdded;
+    const s = parseState(JSON.stringify(old))!;
+    expect(s.dolls.map((d) => d.name)).toEqual(expect.arrayContaining(['Lily', 'Mia', 'Rosie', 'Mom', 'Leo', 'Dad']));
+    expect(new Set(s.dolls.map((d) => d.id)).size).toBe(s.dolls.length);
+    const again = parseState(JSON.stringify(s))!;
+    expect(again.dolls.length).toBe(s.dolls.length);
   });
 
   it('rejects junk and repairs damaged saves', () => {
@@ -121,6 +154,17 @@ describe('shop', () => {
     expect(priceOf('hair:princess')).toBeGreaterThan(0);
     expect(priceOf('wall:night')).toBeGreaterThan(0);
     expect(priceOf('floor:marble')).toBeGreaterThan(0);
+  });
+
+  it('random boys get boy hair and no dresses', () => {
+    const s = newState();
+    for (let i = 0; i < 200; i++) {
+      const l = randomLook(() => true, 'kid', true);
+      expect(l.boy).toBe(true);
+      expect(l.wear.dress).toBeUndefined();
+      expect(['short', 'buzz', 'spiky', 'sidepart', 'swoop', 'curlytop', 'mohawk', 'manbun', 'shaggy', 'flattop', 'afro', 'pixie']).toContain(l.hair);
+    }
+    void s;
   });
 
   it('random outfits only use owned things', () => {

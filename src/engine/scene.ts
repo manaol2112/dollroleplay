@@ -4,7 +4,7 @@ import { PALETTE } from '../art/color';
 import { shadow } from '../art/defs';
 import { type Expr, dollHeight, hipHeight, renderDoll } from '../art/doll';
 import { FURN_BY_ID, artCtx, type FurnDef, type SeatDef } from '../art/furniture';
-import { CHALK_BOX, audience, theaterCurtains } from '../art/scenes';
+import { CHALK_BOX, audience, butterflies, roomLight, theaterCurtains } from '../art/scenes';
 import type { PlaceDef } from '../data/places';
 import { G, toast } from '../game';
 import type { Doll, PlacedItem, SceneState, Stroke } from '../types';
@@ -54,6 +54,8 @@ export class SceneView {
   private popup: HTMLDivElement;
   private popupTimer: number | null = null;
   private ro: ResizeObserver;
+  private idleTimer = 0;
+  private lookTimer = 0;
   drawMode = false;
   chalkColor = '#ffffff';
   curtainsOpen = true;
@@ -81,6 +83,57 @@ export class SceneView {
     this.validateSeats();
     this.renderBg();
     this.renderAll();
+    this.idleTimer = window.setInterval(() => this.idleMoment(), 2300);
+  }
+
+  /** Every few seconds a friend does something on her own: glances, waves, twirls or hops. */
+  private idleMoment(): void {
+    if (document.visibilityState !== 'visible') return;
+    const busy = this.drag && 'started' in this.drag && this.drag.started;
+    const pool = this.dolls().filter((d) => !(busy && this.drag && 'd' in this.drag && this.drag.d === d));
+    if (!pool.length) return;
+    const d = pool[Math.floor(Math.random() * pool.length)];
+    const el = this.els.get('d' + d.id);
+    if (!el || el.classList.contains('sleeping')) return;
+    const r = Math.random();
+    const flash = (cls: string, ms: number) => {
+      el.classList.remove(cls);
+      void el.getBoundingClientRect();
+      el.classList.add(cls);
+      window.setTimeout(() => el.classList.remove(cls), ms);
+    };
+    if (r < 0.45) {
+      el.style.setProperty('--lx', `${(Math.random() * 2 - 1) * 4.5}px`);
+      el.style.setProperty('--ly', `${(Math.random() * 2 - 1) * 2.5}px`);
+      window.setTimeout(() => {
+        el.style.removeProperty('--lx');
+        el.style.removeProperty('--ly');
+      }, 1400);
+    } else if (r < 0.65) flash('idle-wave', 1800);
+    else if (r < 0.8 && !d.seat) flash('idle-spin', 800);
+    else flash('hop', 500);
+  }
+
+  /** Everyone's eyes follow the thing being dragged. */
+  private lookAt(wx: number, wy: number, except?: Doll): void {
+    for (const d of this.dolls()) {
+      if (d === except) continue;
+      const el = this.els.get('d' + d.id);
+      if (!el) continue;
+      const hy = d.seat ? d.y - (dollHeight(d.look) - hipHeight(d.look)) * 0.72 : d.y - dollHeight(d.look) * 0.72;
+      const dx = wx - d.x;
+      const dy = wy - hy;
+      const n = Math.hypot(dx, dy) || 1;
+      el.style.setProperty('--lx', `${((dx / n) * 5).toFixed(1)}px`);
+      el.style.setProperty('--ly', `${((dy / n) * 3).toFixed(1)}px`);
+    }
+    window.clearTimeout(this.lookTimer);
+    this.lookTimer = window.setTimeout(() => {
+      for (const el of this.els.values()) if (el.dataset.doll) {
+        el.style.removeProperty('--lx');
+        el.style.removeProperty('--ly');
+      }
+    }, 1600);
   }
 
   get sc(): SceneState {
@@ -94,6 +147,8 @@ export class SceneView {
   }
 
   destroy(): void {
+    window.clearInterval(this.idleTimer);
+    window.clearTimeout(this.lookTimer);
     this.ro.disconnect();
     window.removeEventListener('pointermove', this.onMove);
     window.removeEventListener('pointerup', this.onUp);
@@ -126,7 +181,9 @@ export class SceneView {
   }
 
   renderFg(): void {
-    this.fgG.innerHTML = this.place.id === 'theater' ? theaterCurtains(this.curtainsOpen) + audience(this.cheering) : '';
+    const se = G.s.season;
+    this.fgG.innerHTML = this.place.id === 'theater' ? theaterCurtains(this.curtainsOpen) + audience(this.cheering)
+      : this.place.outdoor ? butterflies(se) : roomLight(this.place.id, se);
   }
 
   private renderChalk(): void {
@@ -233,6 +290,8 @@ export class SceneView {
     const expr = this.expr.get(d.id) ?? (pose === 'sleep' ? 'sleep' : dragging ? 'surprised' : 'normal');
     const sh = pose === 'stand' || pose === 'held' ? shadow(dragging ? 70 : 96, dragging ? 16 : 22) : '';
     el.innerHTML = `${sh}<g class="bob">${wrapOpen}<g class="art${dragging ? ' wiggle' : ''}">${renderDoll(d.look, { pose, expr })}</g></g>${extra}</g>`;
+    el.classList.toggle('sitting', pose === 'sit');
+    el.classList.toggle('sleeping', pose === 'sleep');
     el.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
   }
 
@@ -465,6 +524,7 @@ export class SceneView {
     }
     const x = this.clampX(p.x + dr.ox);
     const y = Math.max(this.vb.y + 60, Math.min(this.vb.y + this.vb.h + 200, p.y + dr.oy));
+    this.lookAt(x, y - 60, dr.kind === 'doll' ? dr.d : undefined);
     if (dr.kind === 'item') {
       dr.it.x = x;
       dr.it.y = y;

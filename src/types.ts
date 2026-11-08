@@ -15,6 +15,8 @@ export interface Worn {
 
 export interface Look {
   age: Age;
+  /** Boy or girl body and face; any clothes fit either. */
+  boy?: boolean;
   skin: string;
   hair: string;
   hairColor: string;

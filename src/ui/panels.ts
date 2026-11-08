@@ -2,7 +2,7 @@
 import { HAIR } from '../art/doll';
 import { FURNITURE, FURN_BY_ID, furnThumb } from '../art/furniture';
 import { FLOORS, WALLS } from '../art/scenes';
-import { WEAR, flowerG, heartD, starD } from '../art/wear';
+import { WEAR_BY_ID, flowerG, heartD, starD, wearFor } from '../art/wear';
 import { wornOf } from '../data/looks';
 import { makeQuestion, type Pic, type Question } from '../data/quiz';
 import { BLACK_KEYS, SONGS, WHITE_KEYS, type Song } from '../data/songs';
@@ -18,8 +18,24 @@ export const SEASON_ICON: Record<Season, string> = { spring: 'flower', summer: '
 export const SEASON_NAME: Record<Season, string> = { spring: 'Spring', summer: 'Summer', fall: 'Fall', winter: 'Winter' };
 
 // ---------------- shop ----------------
-type ShopTab = 'clothes' | 'accessories' | 'hair' | 'furniture' | 'rooms';
+type ShopTab = Slot | 'hair' | 'furniture' | 'rooms';
 interface ShopItem { key: string; name: string; price: number; thumb: () => string; season: boolean }
+
+const SHOP_TABS: { id: ShopTab; name: string; icon: string }[] = [
+  { id: 'dress', name: 'Dresses', icon: 'dress' },
+  { id: 'top', name: 'Tops', icon: 'shirt' },
+  { id: 'bottom', name: 'Bottoms', icon: 'pants' },
+  { id: 'outer', name: 'Coats', icon: 'coat' },
+  { id: 'shoes', name: 'Shoes', icon: 'shoe' },
+  { id: 'head', name: 'Hats & Bows', icon: 'crown' },
+  { id: 'face', name: 'Glasses', icon: 'glasses' },
+  { id: 'neck', name: 'Necklaces', icon: 'necklace' },
+  { id: 'hand', name: 'Hold', icon: 'wand' },
+  { id: 'back', name: 'Wings & Bags', icon: 'wings' },
+  { id: 'hair', name: 'Hairstyles', icon: 'hair' },
+  { id: 'furniture', name: 'Furniture', icon: 'sofa' },
+  { id: 'rooms', name: 'Rooms', icon: 'wallpaper' },
+];
 
 function shopItems(tab: ShopTab, model: Look): ShopItem[] {
   const season = G.s.season;
@@ -33,40 +49,54 @@ function shopItems(tab: ShopTab, model: Look): ShopItem[] {
     const box = slot === 'hand' || slot === 'back' ? slotBox(l, 'full') : slotBox(l, slot === 'face' ? 'face' : slot);
     return lookThumb(l, box, { headOnly: slot === 'face' || slot === 'head' });
   };
-  const sets: Record<ShopTab, () => ShopItem[]> = {
-    clothes: () => WEAR.filter((w) => ['top', 'bottom', 'dress', 'outer', 'shoes'].includes(w.slot) && w.price).map((w) => ({ key: w.id, name: w.name, price: w.price, thumb: wearThumb(w.id, w.slot), season: !!w.tags?.includes(season) })),
-    accessories: () => WEAR.filter((w) => ['head', 'face', 'neck', 'hand', 'back'].includes(w.slot) && w.price).map((w) => ({ key: w.id, name: w.name, price: w.price, thumb: wearThumb(w.id, w.slot), season: !!w.tags?.includes(season) })),
-    hair: () => HAIR.filter((h) => h.price).map((h) => ({ key: 'hair:' + h.id, name: h.name, price: h.price, thumb: () => lookThumb({ ...model, hair: h.id }, slotBox(model, 'hair'), { headOnly: true }), season: false })),
-    furniture: () => FURNITURE.filter((f) => f.price).map((f) => ({ key: f.id, name: f.name, price: f.price, thumb: () => furnThumb(f), season: (season === 'winter' && (f.id === 'xmasTree' || f.id === 'fireplace' || f.id === 'snowman')) || (season === 'fall' && f.id === 'pumpkin') })),
-    rooms: () => [
-      ...WALLS.filter((w) => w.price).map((w) => ({ key: 'wall:' + w.id, name: w.name + ' wallpaper', price: w.price, thumb: () => wallThumb(w.id), season: false })),
-      ...FLOORS.filter((f) => f.price).map((f) => ({ key: 'floor:' + f.id, name: f.name + ' floor', price: f.price, thumb: () => floorThumb(f.id), season: false })),
-    ],
-  };
-  return sets[tab]().sort((a, b) => Number(b.season) - Number(a.season) || a.price - b.price);
+  let list: ShopItem[];
+  if (tab === 'hair') list = HAIR.filter((h) => h.price).map((h) => ({ key: 'hair:' + h.id, name: h.name, price: h.price, thumb: () => lookThumb({ ...model, hair: h.id }, slotBox(model, 'hair'), { headOnly: true }), season: false }));
+  else if (tab === 'furniture') list = FURNITURE.filter((f) => f.price).map((f) => ({ key: f.id, name: f.name, price: f.price, thumb: () => furnThumb(f), season: (season === 'winter' && ['xmasTree', 'fireplace', 'snowman'].includes(f.id)) || (season === 'fall' && f.id === 'pumpkin') }));
+  else if (tab === 'rooms') list = [
+    ...WALLS.filter((w) => w.price).map((w) => ({ key: 'wall:' + w.id, name: w.name + ' wallpaper', price: w.price, thumb: () => wallThumb(w.id), season: false })),
+    ...FLOORS.filter((f) => f.price).map((f) => ({ key: 'floor:' + f.id, name: f.name + ' floor', price: f.price, thumb: () => floorThumb(f.id), season: false })),
+  ];
+  else list = wearFor(tab).filter((w) => w.price).map((w) => ({ key: w.id, name: w.name, price: w.price, thumb: wearThumb(w.id, tab), season: !!w.tags?.includes(season) }));
+  // This season's things first, keeping catalog order otherwise.
+  return list.map((x, i) => ({ x, i })).sort((a, b) => Number(b.x.season) - Number(a.x.season) || a.i - b.i).map((v) => v.x);
 }
 
 export function openShop(): void {
-  const tabs: { id: ShopTab; name: string; icon: string }[] = [
-    { id: 'clothes', name: 'Clothes', icon: 'dress' },
-    { id: 'accessories', name: 'Accessories', icon: 'crown' },
-    { id: 'hair', name: 'Hairstyles', icon: 'hair' },
-    { id: 'furniture', name: 'Furniture', icon: 'sofa' },
-    { id: 'rooms', name: 'Rooms', icon: 'wallpaper' },
-  ];
-  let tab: ShopTab = 'clothes';
+  let tab: ShopTab = 'dress';
+  let hideOwned = false;
   const m = openModal('shop', `<div class="shop-head"><h2>${icon('bag')}Boutique</h2><div class="coins-big">${icon('coin')}<span></span></div><button class="round-btn" data-close>${icon('close')}</button></div>
-    <div class="shop-tabs"></div><div class="shop-grid"></div>`);
+    <div class="shop-tabs"></div><div class="shop-bar"><span class="count"></span><button class="chip" data-hide>${icon('check')}<span>Hide what I have</span></button></div><div class="shop-grid"></div>`);
   const model = G.s.dolls[0]?.look;
-  const render = () => {
+  let lazy: IntersectionObserver | null = null;
+  let thumbs = new Map<string, () => string>();
+  const render = (keepScroll = false) => {
+    const grid = m.box.querySelector('.shop-grid') as HTMLDivElement;
+    const scroll = grid.scrollTop;
     m.box.querySelector('.coins-big span')!.textContent = String(G.s.coins);
-    m.box.querySelector('.shop-tabs')!.innerHTML = tabs.map((t) => `<button class="tab${t.id === tab ? ' on' : ''}" data-tab="${t.id}">${icon(t.icon)}<span>${t.name}</span></button>`).join('');
-    const items = shopItems(tab, model);
-    m.box.querySelector('.shop-grid')!.innerHTML = items.map((it) => {
-      const owned = G.owns(it.key);
-      return `<div class="shop-card${owned ? ' owned' : ''}">${it.season ? `<span class="ribbon">${icon(SEASON_ICON[G.s.season])}${SEASON_NAME[G.s.season]}</span>` : ''}<div class="thumb">${it.thumb()}</div><div class="nm">${esc(it.name)}</div>` +
-        (owned ? `<div class="owned-tag">${icon('check')}Yours</div>` : `<button class="btn buy${G.s.coins < it.price ? ' poor' : ''}" data-buy="${it.key}">${icon('coin')}${it.price}</button>`) + `</div>`;
-    }).join('');
+    m.box.querySelector('.shop-tabs')!.innerHTML = SHOP_TABS.map((t) => `<button class="tab${t.id === tab ? ' on' : ''}" data-tab="${t.id}">${icon(t.icon)}<span>${t.name}</span></button>`).join('');
+    m.box.querySelector('[data-hide]')!.classList.toggle('on', hideOwned);
+    const all = shopItems(tab, model);
+    const items = hideOwned ? all.filter((it) => !G.owns(it.key)) : all;
+    const owned = all.filter((it) => G.owns(it.key)).length;
+    m.box.querySelector('.count')!.textContent = `${all.length} to collect · you have ${owned}`;
+    thumbs = new Map(items.map((it) => [it.key, it.thumb]));
+    grid.innerHTML = items.map((it) => {
+      const own = G.owns(it.key);
+      return `<div class="shop-card${own ? ' owned' : ''}">${it.season ? `<span class="ribbon">${icon(SEASON_ICON[G.s.season])}${SEASON_NAME[G.s.season]}</span>` : ''}<div class="thumb" data-thumb="${esc(it.key)}"><i class="thumb-wait"></i></div><div class="nm">${esc(it.name)}</div>` +
+        (own ? `<div class="owned-tag">${icon('check')}Yours</div>` : `<button class="btn buy${G.s.coins < it.price ? ' poor' : ''}" data-buy="${esc(it.key)}">${icon('coin')}${it.price}</button>`) + `</div>`;
+    }).join('') || `<p class="hint">You have everything here! Wow!</p>`;
+    lazy?.disconnect();
+    lazy = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const el = e.target as HTMLElement;
+        lazy!.unobserve(el);
+        const fn = thumbs.get(el.dataset.thumb!);
+        if (fn) el.innerHTML = fn();
+      }
+    }, { root: grid, rootMargin: '400px 0px' });
+    grid.querySelectorAll('[data-thumb]').forEach((el) => lazy!.observe(el));
+    if (keepScroll) grid.scrollTop = scroll;
   };
   m.box.addEventListener('click', (e) => {
     const t = e.target as Element;
@@ -78,15 +108,21 @@ export function openShop(): void {
       m.box.querySelector('.shop-grid')!.scrollTop = 0;
       return;
     }
+    if (t.closest('[data-hide]')) {
+      hideOwned = !hideOwned;
+      sound.tap();
+      render();
+      return;
+    }
     const b = t.closest('[data-buy]') as HTMLElement | null;
     if (b && G.buy(b.dataset.buy!)) {
       const r = b.getBoundingClientRect();
       burst('confetti', r.left + r.width / 2, r.top, 36);
       sound.sparkle();
       const key = b.dataset.buy!;
-      const name = WEAR.find((w) => w.id === key)?.name ?? FURN_BY_ID[key]?.name ?? 'It';
-      toast(`${name} is yours!${FURN_BY_ID[key] ? ' Find it in your house tray.' : WEAR.find((w) => w.id === key) ? ' Try it on in the closet.' : ''}`, 'bag');
-      render();
+      const name = WEAR_BY_ID[key]?.name ?? FURN_BY_ID[key]?.name ?? 'It';
+      toast(`${name} is yours!${FURN_BY_ID[key] ? ' Find it in your house tray.' : WEAR_BY_ID[key] ? ' Try it on in the closet.' : ''}`, 'bag');
+      render(true);
     }
   });
   render();

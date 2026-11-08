@@ -24,6 +24,8 @@ export interface GameState {
   settings: { sound: boolean; music: boolean };
   nextUid: number;
   seenIntro: boolean;
+  /** Leo and Dad joined saves made before boys existed. */
+  boysAdded: boolean;
 }
 
 export const START_COINS = 120;
@@ -51,10 +53,17 @@ export function freshScene(s: GameState, placeId: string): SceneState {
 export function newState(now = new Date()): GameState {
   const s: GameState = {
     v: 1, coins: START_COINS, owned: [], dolls: [], scenes: {}, season: seasonFor(now), stats: {}, visited: [], seasonsSeen: [seasonFor(now)], songsDone: [],
-    ch: { list: [], base: {}, claimed: [], next: 0, rep: 0 }, daily: '', settings: { sound: true, music: true }, nextUid: 1, seenIntro: false,
+    ch: { list: [], base: {}, claimed: [], next: 0, rep: 0 }, daily: '', settings: { sound: true, music: true }, nextUid: 1, seenIntro: false, boysAdded: true,
   };
-  const spots: [string, number, number][] = [['bedroom', 620, 780], ['bedroom', 900, 800], ['living', 560, 820], ['living', 1040, 830]];
-  starterLooks().forEach((st, i) => s.dolls.push({ id: `d${i + 1}`, name: st.name, look: st.look, place: spots[i][0], x: spots[i][1], y: spots[i][2], seat: null }));
+  // Lily, Mia, Rosie and Mom keep ids d1-d4 from before boys existed; Leo and Dad are d5 and d6.
+  const spots: Record<string, [string, number, number, string]> = {
+    Lily: ['bedroom', 620, 780, 'd1'], Leo: ['bedroom', 1000, 830, 'd5'], Mia: ['bedroom', 900, 800, 'd2'],
+    Rosie: ['living', 560, 820, 'd3'], Mom: ['living', 1040, 830, 'd4'], Dad: ['living', 1180, 850, 'd6'],
+  };
+  for (const st of starterLooks()) {
+    const [place, x, y, id] = spots[st.name];
+    s.dolls.push({ id, name: st.name, look: st.look, place, x, y, seat: null });
+  }
   for (const id of Object.keys(PLACES)) s.scenes[id] = freshScene(s, id);
   refreshChallenges(s);
   return s;
@@ -82,6 +91,16 @@ export function parseState(json: string | null): GameState | null {
     if (!HAIR_BY_ID[look.hair]) look.hair = 'long';
     return { ...d, look, place: d.place && PLACES[d.place] ? d.place : null, seat: d.seat ?? null };
   });
+  if (!raw.boysAdded) {
+    // Saves from before boys existed: invite Leo and Dad to the living room.
+    for (const st of starterLooks().filter((x) => x.look.boy)) {
+      if (s.dolls.length >= MAX_DOLLS || s.dolls.some((d) => d.name === st.name)) continue;
+      let n = s.dolls.length + 1;
+      while (s.dolls.some((d) => d.id === `d${n}`)) n++;
+      s.dolls.push({ id: `d${n}`, name: st.name, look: st.look, place: 'living', x: 700 + s.dolls.length * 60, y: 840, seat: null });
+    }
+    s.boysAdded = true;
+  }
   s.scenes = { ...(raw.scenes ?? {}) };
   for (const id of Object.keys(PLACES)) {
     const sc = s.scenes[id];

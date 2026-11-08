@@ -21,16 +21,30 @@ if (q === 'dolls') {
   for (const e of ['happy', 'surprised', 'yum'] as const) html += cell(renderDoll(starterLooks()[1].look, { expr: e }), e);
 }
 if (q === 'wear') {
-  for (const w of WEAR) {
-    const look: Look = { ...baseLook(), hair: 'bun', wear: { ...baseLook().wear } };
+  const slot = new URLSearchParams(location.search).get('slot');
+  const qs = new URLSearchParams(location.search);
+  const age = (qs.get('age') ?? 'kid') as Look['age'];
+  const group = qs.get('group');
+  const pose = (qs.get('pose') ?? 'stand') as 'stand' | 'sit' | 'held' | 'sleep' | 'wave';
+  const size = Number(qs.get('size') ?? 150);
+  for (const w of WEAR.filter((x) => (!slot || x.slot === slot) && (!group || x.group === group))) {
+    const boy = qs.get('boy') === '1';
+    const look: Look = { ...baseLook(), age, boy, hair: boy ? 'sidepart' : 'bun', wear: { ...baseLook().wear, ...(boy ? { bottom: { id: 'jeans', color: '#5d86d6', pattern: 'none' as const } } : {}) } };
     if (w.slot === 'dress') { delete look.wear.top; delete look.wear.bottom; }
-    look.wear[w.slot] = { id: w.id, color: w.color, pattern: 'none' };
-    html += cell(renderDoll(look), w.id, 130, 190);
+    look.wear[w.slot] = { id: w.id, color: w.color, pattern: w.pattern ?? 'none' };
+    const vb = pose === 'sleep' ? '-300 -230 400 330' : pose === 'sit' ? '-150 -360 300 420' : age === 'kid' ? '-130 -420 260 440' : '-150 -470 300 490';
+    html += cell(`<g transform="translate(0 ${pose === 'sit' ? 0 : 0})">${renderDoll(look, { pose })}</g>`, `<b>${w.name}</b><br><small>${w.id} · ${w.group ?? ''} · ${w.price}</small>`, size, size * 1.45, vb);
   }
 }
+if (q === 'hats') {
+  for (const hat of ['beanie', 'cap', 'sunhat', 'crown']) for (const hair of ['bun', 'spacebuns', 'manbun', 'long'])
+    html += cell(renderDoll({ ...baseLook(), hair, wear: { ...baseLook().wear, head: { id: hat, color: '#ff7eb6', pattern: 'none' } } }), `${hat} / ${hair}`, 130, 190);
+}
 if (q === 'hair') {
-  for (const h of HAIR) for (const age of ['kid', 'adult'] as const)
-    html += cell(renderDoll({ ...baseLook(), age, hair: h.id, hairColor: age === 'kid' ? '#8a5a34' : '#f2cf7a' }), h.id, 150, 220);
+  const boy = new URLSearchParams(location.search).get('boy') === '1';
+  const only = new URLSearchParams(location.search).get('only')?.split(',');
+  for (const h of HAIR.filter((x) => !only || only.includes(x.id))) for (const age of ['kid', 'adult'] as const)
+    html += cell(renderDoll({ ...baseLook(), boy, age, hair: h.id, hairColor: age === 'kid' ? '#8a5a34' : '#2b1d1a', wear: boy ? { top: { id: 'tee', color: '#7cc8ff', pattern: 'none' }, bottom: { id: 'jeans', color: '#5d86d6', pattern: 'none' }, shoes: { id: 'sneakers', color: '#4f9dff', pattern: 'none' } } : baseLook().wear }), h.id, 150, 220, age === 'kid' ? '-130 -420 260 440' : '-150 -470 300 490');
 }
 g.innerHTML = html;
 import { FURNITURE, furnViewBox, FURN_BY_ID } from '../art/furniture';

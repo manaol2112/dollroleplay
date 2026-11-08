@@ -73,13 +73,13 @@ export function promptName(current: string, onDone: (name: string) => void): voi
 
 // ---------------- thumbnails ----------------
 export function headThumb(look: Look): string {
-  const b = body(look.age);
+  const b = body(look.age, !!look.boy);
   const R = b.R;
-  return `<svg viewBox="${-R * 1.45} ${b.headY - R * 1.5} ${R * 2.9} ${R * 2.75}">${renderDoll(look, { headOnly: true })}</svg>`;
+  return `<svg viewBox="${-R * 1.45} ${b.headY - R * 1.5} ${R * 2.9} ${R * 2.75}">${still(renderDoll(look, { headOnly: true }))}</svg>`;
 }
 
 export function slotBox(look: Look, slot: Slot | 'hair' | 'face' | 'full'): string {
-  const b = body(look.age);
+  const b = body(look.age, !!look.boy);
   const R = b.R;
   switch (slot) {
     case 'top':
@@ -103,8 +103,11 @@ export function slotBox(look: Look, slot: Slot | 'hair' | 'face' | 'full'): stri
   }
 }
 
+/** Removes built-in sparkle and flutter animations: hundreds of moving thumbnails would be heavy on a tablet. */
+export const still = (svg: string) => svg.replace(/<animate(?:Transform|Motion)?\b[^>]*?(?:\/>|>\s*<\/animate(?:Transform|Motion)?>)/g, '');
+
 export const lookThumb = (look: Look, box: string, opts: Parameters<typeof renderDoll>[1] = {}) =>
-  `<svg viewBox="${box}" preserveAspectRatio="xMidYMid meet">${renderDoll(look, opts)}</svg>`;
+  `<svg viewBox="${box}" preserveAspectRatio="xMidYMid meet">${still(renderDoll(look, opts))}</svg>`;
 
 export function wallThumb(id: string): string {
   const w = WALL_BY_ID[id];
