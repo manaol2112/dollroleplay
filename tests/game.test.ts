@@ -69,6 +69,32 @@ describe('art', () => {
     }
   });
 
+  it('has lots of wallpapers and floors, all drawable', async () => {
+    const { WALLS, FLOORS, wallArt, floorArt, wallSwatch, floorSwatch } = await import('../src/art/roomstyle');
+    expect(WALLS.length).toBeGreaterThanOrEqual(100);
+    expect(FLOORS.length).toBeGreaterThanOrEqual(45);
+    expect(new Set(WALLS.map((w) => w.id)).size).toBe(WALLS.length);
+    expect(new Set(FLOORS.map((w) => w.id)).size).toBe(FLOORS.length);
+    for (const w of WALLS) expect(wallArt(w, -600, -500, 2200, 600) + wallSwatch(w), w.id).not.toMatch(bad);
+    for (const fl of FLOORS) expect(floorArt(fl, 600) + floorSwatch(fl), fl.id).not.toMatch(bad);
+    for (const id of ['pinkPlain', 'lilacDots', 'mintStripes', 'peach', 'skyStars', 'night']) expect(WALLS.some((w) => w.id === id), id).toBe(true);
+    for (const id of ['woodLight', 'woodDark', 'tilesPink', 'marble', 'checker']) expect(FLOORS.some((w) => w.id === id), id).toBe(true);
+  });
+
+  it('has 500+ furniture pieces with unique ids, valid collections and prices', async () => {
+    const { FURN_STYLE_BY_ID } = await import('../src/art/furn/kit');
+    expect(FURNITURE.length).toBeGreaterThanOrEqual(500);
+    expect(new Set(FURNITURE.map((d) => d.id)).size).toBe(FURNITURE.length);
+    for (const d of FURNITURE) {
+      expect(d.price, d.id).toBeGreaterThanOrEqual(0);
+      if (d.style) expect(FURN_STYLE_BY_ID[d.style], `${d.id} style ${d.style}`).toBeTruthy();
+      expect(['floor', 'wall', 'rug', 'prop']).toContain(d.mount);
+      for (const s of d.seats ?? []) expect(Number.isFinite(s.x + s.y), d.id).toBe(true);
+    }
+    for (const cat of ['bedroom', 'kids', 'living', 'electronics', 'lighting', 'kitchen', 'bath', 'decor', 'plants', 'wall', 'rugs', 'yard'])
+      expect(FURNITURE.filter((d) => d.cat === cat).length, cat).toBeGreaterThanOrEqual(20);
+  });
+
   it('only places furniture that exists', () => {
     const ids = new Set(FURNITURE.map((f) => f.id));
     for (const p of Object.values(PLACES)) for (const it of p.initial) expect(ids.has(it.def), it.def).toBe(true);

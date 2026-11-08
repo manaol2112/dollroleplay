@@ -47,7 +47,7 @@ export function freshScene(s: GameState, placeId: string): SceneState {
   return {
     items: p.initial.map((it) => ({ uid: s.nextUid++, def: it.def, x: it.x, y: it.y, flip: it.flip, on: it.on })),
     wall: p.room ? p.wall : undefined,
-    floor: p.room ? p.floor : undefined,
+    floor: p.room || p.yard ? p.floor : undefined,
     chalk: placeId === 'school' ? [] : undefined,
   };
 }

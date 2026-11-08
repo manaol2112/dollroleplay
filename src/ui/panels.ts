@@ -1,6 +1,7 @@
 // Pop-up panels: the boutique shop, challenges, settings, the season picker, school lessons and the piano.
 import { HAIR } from '../art/doll';
-import { FURNITURE, FURN_BY_ID, furnThumb } from '../art/furniture';
+import { FURNITURE, FURN_BY_ID, type FurnCat, furnThumb } from '../art/furniture';
+import { FURN_STYLES } from '../art/furn/kit';
 import { FLOORS, WALLS } from '../art/scenes';
 import { WEAR_BY_ID, flowerG, heartD, starD, wearFor } from '../art/wear';
 import { wornOf } from '../data/looks';
@@ -11,7 +12,7 @@ import { CHORDS, type Drum, type Instrument, drum, duckMusic, playNote, sound, s
 import { burst, celebrate } from '../engine/particles';
 import { G, coinFly, toast } from '../game';
 import { SEASONS, type Look, type Season, type Slot } from '../types';
-import { confirmBox, el, esc, floorThumb, lookThumb, openModal, slotBox, wallThumb } from './dom';
+import { confirmBox, el, esc, floorThumb, lookThumb, openModal, slotBox, still, wallThumb } from './dom';
 import { icon } from './icons';
 
 export const SEASON_ICON: Record<Season, string> = { spring: 'flower', summer: 'sun', fall: 'leaf', winter: 'snow' };
@@ -610,4 +611,92 @@ export function openPiano(host: HTMLElement, hooks: PianoHooks): () => void {
   }
   layout();
   return close;
+}
+
+// ---------------- decorate catalog ----------------
+const CATALOG_TABS: { id: FurnCat; name: string; icon: string }[] = [
+  { id: 'bedroom', name: 'Bedroom', icon: 'bed' }, { id: 'kids', name: 'Kids', icon: 'toy' }, { id: 'living', name: 'Living', icon: 'sofa' },
+  { id: 'electronics', name: 'Gadgets', icon: 'tv' }, { id: 'lighting', name: 'Lights', icon: 'lamp' }, { id: 'kitchen', name: 'Kitchen', icon: 'fridge' },
+  { id: 'bath', name: 'Bath', icon: 'bath' }, { id: 'decor', name: 'Decor', icon: 'decor' }, { id: 'plants', name: 'Plants', icon: 'plant' },
+  { id: 'wall', name: 'Walls', icon: 'wall' }, { id: 'rugs', name: 'Rugs', icon: 'rug' }, { id: 'yard', name: 'Yard', icon: 'tree' },
+  { id: 'outdoor', name: 'Park', icon: 'tree' }, { id: 'toys', name: 'Toys', icon: 'toy' }, { id: 'food', name: 'Food', icon: 'apple' },
+];
+const catalogMemo: { tab: FurnCat; style: string; scroll: number } = { tab: 'bedroom', style: '', scroll: 0 };
+
+/** The big furniture catalog: browse by room or by design collection, tap to place. */
+export function openCatalog(onPlace: (id: string) => void): void {
+  const m = openModal('shop catalog', `<div class="shop-head"><h2>${icon('decorate')}Decorate</h2><div class="coins-big">${icon('coin')}<span></span></div><button class="round-btn" data-close>${icon('close')}</button></div>
+    <div class="shop-tabs"></div><div class="style-chips"></div><div class="shop-grid cat-grid"></div>`);
+  let lazy: IntersectionObserver | null = null;
+  const grid = m.box.querySelector('.cat-grid') as HTMLDivElement;
+  const render = (keep = false) => {
+    m.box.querySelector('.coins-big span')!.textContent = String(G.s.coins);
+    m.box.querySelector('.shop-tabs')!.innerHTML = CATALOG_TABS.map((t) => `<button class="tab${t.id === catalogMemo.tab ? ' on' : ''}" data-tab="${t.id}">${icon(t.icon)}<span>${t.name}</span></button>`).join('');
+    const inTab = FURNITURE.filter((f) => f.cat === catalogMemo.tab);
+    const styles = FURN_STYLES.filter((st) => inTab.some((f) => f.style === st.id));
+    if (catalogMemo.style && !styles.some((st) => st.id === catalogMemo.style)) catalogMemo.style = '';
+    m.box.querySelector('.style-chips')!.innerHTML = styles.length
+      ? `<button class="chip${!catalogMemo.style ? ' on' : ''}" data-style="">All</button>` + styles.map((st) => `<button class="chip${catalogMemo.style === st.id ? ' on' : ''}" data-style="${st.id}"><i class="sdot" style="background:linear-gradient(135deg, ${st.main} 50%, ${st.accent} 50%)"></i>${esc(st.name)}</button>`).join('')
+      : '';
+    const list = inTab.filter((f) => !catalogMemo.style || f.style === catalogMemo.style);
+    let html = '';
+    let last = '';
+    for (const f of list) {
+      const g = f.group ?? 'More';
+      if (g !== last && !catalogMemo.style) {
+        last = g;
+        html += `<h3 class="cat-sec">${esc(g)}</h3>`;
+      }
+      const own = G.owns(f.id);
+      html += `<button class="shop-card cat-card${own ? '' : ' locked'}" data-place="${f.id}"><div class="thumb" data-thumb="${f.id}"><i class="thumb-wait"></i></div><div class="nm">${esc(f.name)}</div>${own ? '' : `<span class="price">${icon('coin')}${f.price}</span>`}</button>`;
+    }
+    grid.innerHTML = html || '<p class="hint">Nothing here yet.</p>';
+    lazy?.disconnect();
+    lazy = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const el = e.target as HTMLElement;
+        lazy!.unobserve(el);
+        const d = FURN_BY_ID[el.dataset.thumb!];
+        if (d) el.innerHTML = still(furnThumb(d));
+      }
+    }, { root: grid, rootMargin: '400px 0px' });
+    grid.querySelectorAll('[data-thumb]').forEach((el) => lazy!.observe(el));
+    grid.scrollTop = keep ? catalogMemo.scroll : 0;
+  };
+  grid.addEventListener('scroll', () => (catalogMemo.scroll = grid.scrollTop));
+  m.box.addEventListener('click', (e) => {
+    const t = e.target as Element;
+    const tb = t.closest('[data-tab]') as HTMLElement | null;
+    if (tb) {
+      catalogMemo.tab = tb.dataset.tab as FurnCat;
+      catalogMemo.style = '';
+      sound.tap();
+      render();
+      return;
+    }
+    const sb = t.closest('[data-style]') as HTMLElement | null;
+    if (sb) {
+      catalogMemo.style = sb.dataset.style!;
+      sound.tap();
+      render();
+      return;
+    }
+    const card = t.closest('[data-place]') as HTMLElement | null;
+    if (!card) return;
+    const id = card.dataset.place!;
+    const def = FURN_BY_ID[id];
+    const place = () => {
+      m.close();
+      onPlace(id);
+    };
+    if (G.owns(id)) return place();
+    confirmBox(`Buy ${def.name}?`, `It costs <b class="coin-text">${icon('coin')}${def.price}</b>. You have ${G.s.coins}.`, `${icon('bag')}<span>Buy</span>`, still(furnThumb(def)), () => {
+      if (G.buy(id)) {
+        celebrate();
+        place();
+      }
+    });
+  });
+  render(true);
 }

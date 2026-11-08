@@ -50,7 +50,15 @@ g.innerHTML = html;
 import { FURNITURE, furnViewBox, FURN_BY_ID } from '../art/furniture';
 if (q === 'furniture') {
   let h = '';
-  for (const d of FURNITURE) h += `<div class="cell"><svg width="150" height="130" viewBox="${furnViewBox(d)}">${d.art(d.color ?? '#ff9ec7', true)}${d.front ? d.front(d.color ?? '#ff9ec7', true) : ''}</svg>${d.id}</div>`;
+  const qs = new URLSearchParams(location.search);
+  const cat = qs.get('cat');
+  const group = qs.get('group');
+  const style = qs.get('style');
+  const size = Number(qs.get('size') ?? 150);
+  const on = qs.get('on') !== '0';
+  const list = FURNITURE.filter((d) => (!cat || d.cat === cat) && (!group || d.group === group) && (!style || d.style === style));
+  for (const d of list) h += `<div class="cell" style="width:${size + 10}px"><svg width="${size}" height="${Math.round(size * 0.85)}" viewBox="${furnViewBox(d)}" style="background:#f3e6f5">${d.art(d.color ?? '#ff9ec7', on)}${d.front ? d.front(d.color ?? '#ff9ec7', on) : ''}</svg><b>${d.name}</b><br><small>${d.id} · ${d.group ?? ''} · ${d.price}</small></div>`;
+  const filtered = !!(cat || group || style);
   const lk = starterLooks();
   const seatDemo = (id: string, li: number) => {
     const d = FURN_BY_ID[id];
@@ -58,6 +66,6 @@ if (q === 'furniture') {
     const c = d.color ?? '#ff9ec7';
     return `<div class="cell"><svg width="300" height="300" viewBox="-260 -480 520 520">${d.art(c, false)}<g transform="translate(${s.x} ${s.y})">${renderDoll(lk[li].look, { pose: s.pose === 'sleep' ? 'sleep' : 'sit' })}</g>${d.front ? d.front(c, false) : ''}</svg>${id}+doll</div>`;
   };
-  h += seatDemo('sofa', 0) + seatDemo('bed', 1) + seatDemo('schoolDesk', 2) + seatDemo('swings', 0) + seatDemo('salonChair', 3) + seatDemo('dryer', 1) + seatDemo('grandPiano', 0) + seatDemo('canopyBed', 3);
+  if (!filtered) h += seatDemo('sofa', 0) + seatDemo('bed', 1) + seatDemo('schoolDesk', 2) + seatDemo('swings', 0) + seatDemo('salonChair', 3) + seatDemo('dryer', 1) + seatDemo('grandPiano', 0) + seatDemo('canopyBed', 3);
   g.innerHTML = h;
 }

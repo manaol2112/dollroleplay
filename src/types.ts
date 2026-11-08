@@ -62,6 +62,8 @@ export interface PlacedItem {
   x: number;
   y: number;
   flip?: boolean;
+  /** Size: 0.8 small, 1 normal, 1.25 big. */
+  scale?: number;
   color?: string;
   on?: boolean;
   /** For small items resting on furniture: the furniture they sit on. */
@@ -78,5 +80,8 @@ export interface SceneState {
   items: PlacedItem[];
   wall?: string;
   floor?: string;
+  /** Baseboard and ceiling trim color (the fence in the backyard). */
+  trim?: string;
+  curtain?: string;
   chalk?: Stroke[];
 }

@@ -3,71 +3,12 @@
 import { dark, light } from './color';
 import { cloth } from './defs';
 import { bowG, flowerG, heartD, sparkleD, starD } from './wear';
+import {
+  type FurnCat, type FurnDef, type Mount, type SeatDef, C, E, Ln, P, R, WOOD, WOOD_D, artCtx, box, f, flame, glow, leg, roundRectD,
+} from './furn/kit';
 
-import type { Season } from '../types';
-
-/** Lets a few outdoor items change with the season. */
-export const artCtx: { season: Season } = { season: 'spring' };
-
-export type Mount = 'floor' | 'wall' | 'rug' | 'prop';
-export type FurnCat = 'bedroom' | 'kitchen' | 'living' | 'decor' | 'wall' | 'toys' | 'food' | 'outdoor' | 'school' | 'stage' | 'salon' | 'shop';
-
-export interface SeatDef {
-  x: number;
-  y: number;
-  pose: 'sit' | 'sleep' | 'slide';
-  /** Rocking motion shared by the seat and whoever sits in it. */
-  anim?: { pivot: [number, number]; amp: number; dur: number; phase?: number };
-  /** For slides: where the rider travels, relative to the item. */
-  path?: [number, number][];
-}
-
-export interface FurnDef {
-  id: string;
-  name: string;
-  cat: FurnCat;
-  price: number;
-  mount: Mount;
-  w: number;
-  h: number;
-  color?: string;
-  art: (c: string, on: boolean) => string;
-  front?: (c: string, on: boolean) => string;
-  seats?: SeatDef[];
-  surfaces?: { x1: number; x2: number; y: number }[];
-  toggle?: boolean;
-  /** Tapping drops one of these props nearby. */
-  spawn?: string[];
-  food?: boolean;
-  /** Plays a sound when tapped. */
-  sfx?: 'note' | 'boing' | 'squeak' | 'ding' | 'music';
-  /** Seats animate only while someone sits there. */
-  animWhenUsed?: boolean;
-}
-
-const f = (n: number) => n.toFixed(1);
-const R = (x: number, y: number, w: number, h: number, r: number, fill: string, extra = '') =>
-  `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="${f(r)}" fill="${fill}" ${extra}/>`;
-const box = (x: number, y: number, w: number, h: number, r: number, c: string, pat = 'none', shade: 'x' | 'y' = 'x') => {
-  const d = roundRectD(x, y, w, h, r);
-  return cloth(d, c, pat, shade);
-};
-export function roundRectD(x: number, y: number, w: number, h: number, r: number): string {
-  r = Math.min(r, w / 2, h / 2);
-  return `M${f(x + r)} ${f(y)} H${f(x + w - r)} Q${f(x + w)} ${f(y)} ${f(x + w)} ${f(y + r)} V${f(y + h - r)} Q${f(x + w)} ${f(y + h)} ${f(x + w - r)} ${f(y + h)} H${f(x + r)} Q${f(x)} ${f(y + h)} ${f(x)} ${f(y + h - r)} V${f(y + r)} Q${f(x)} ${f(y)} ${f(x + r)} ${f(y)}Z`;
-}
-const C = (x: number, y: number, r: number, fill: string, extra = '') => `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="${fill}" ${extra}/>`;
-const E = (x: number, y: number, rx: number, ry: number, fill: string, extra = '') => `<ellipse cx="${f(x)}" cy="${f(y)}" rx="${f(rx)}" ry="${f(ry)}" fill="${fill}" ${extra}/>`;
-const P = (d: string, fill: string, extra = '') => `<path d="${d}" fill="${fill}" ${extra}/>`;
-const Ln = (x1: number, y1: number, x2: number, y2: number, c: string, w = 3, extra = '') =>
-  `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${c}" stroke-width="${w}" stroke-linecap="round" ${extra}/>`;
-const leg = (x: number, y: number, h: number, c: string, w = 10) => R(x - w / 2, y, w, h, w / 2.5, c);
-const glow = (x: number, y: number, r: number) => E(x, y, r, r, 'url(#g-glow)');
-const WOOD = '#d9a477';
-const WOOD_D = '#b07a4f';
-const flicker = (dur = 0.5) => `<animateTransform attributeName="transform" type="scale" values="1 1;1.06 0.92;0.96 1.08;1 1" dur="${dur}s" repeatCount="indefinite" additive="sum"/>`;
-const flame = (x: number, y: number, s: number) =>
-  `<g transform="translate(${f(x)} ${f(y)})"><g>${flicker(0.4 + Math.abs(x % 3) * 0.1)}${P(`M0 ${-26 * s} C${12 * s} ${-12 * s} ${10 * s} 0 0 0 C${-10 * s} 0 ${-12 * s} ${-12 * s} 0 ${-26 * s}Z`, '#ff8a3d')}${P(`M0 ${-16 * s} C${6 * s} ${-8 * s} ${6 * s} 0 0 0 C${-6 * s} 0 ${-6 * s} ${-8 * s} 0 ${-16 * s}Z`, '#ffd84a')}</g></g>`;
+export type { FurnCat, FurnDef, Mount, SeatDef };
+export { artCtx, roundRectD };
 
 // ---------------- bedroom ----------------
 const BEDROOM: FurnDef[] = [
@@ -642,8 +583,28 @@ const PROPS: FurnDef[] = [
   prop('apple2', 'Teacher Apple', 'food', 50, 56, () => C(0, -22, 20, '#e8384f') + C(-6, -30, 6, '#fff', 'opacity="0.4"') + Ln(0, -42, 2, -50, '#8a5a3c', 3) + E(9, -46, 8, 4, '#5fae6b')),
 ];
 
-export const FURNITURE: FurnDef[] = [...BEDROOM, ...KITCHEN, ...LIVING, ...WALL, ...OUTDOOR, ...SCHOOL, ...STAGE, ...SALON, ...SHOP, ...PROPS];
-export const FURN_BY_ID: Record<string, FurnDef> = Object.fromEntries(FURNITURE.map((d) => [d.id, d]));
+import { BEDROOM_MORE } from './furn/bedroom';
+import { LIVING_MORE } from './furn/living';
+import { KITCHEN_MORE } from './furn/kitchen';
+import { DECOR_MORE } from './furn/decor';
+
+const ORIGINALS: FurnDef[] = [...BEDROOM, ...KITCHEN, ...LIVING, ...WALL, ...OUTDOOR, ...SCHOOL, ...STAGE, ...SALON, ...SHOP, ...PROPS];
+// Originals filed under the newer, finer categories.
+const RECAT: Record<string, FurnCat> = {
+  rugRound: 'rugs', rugHeart: 'rugs', rugStripe: 'rugs', plant: 'plants', cactus: 'plants', vase: 'plants',
+  floorLamp: 'lighting', pendantLamp: 'lighting', stringLights: 'lighting', nightstand: 'lighting', tv: 'electronics', boombox: 'electronics',
+  toychest: 'kids', beanbag: 'kids', upright: 'living', xmasTree: 'decor', microwave: 'kitchen', toaster: 'kitchen',
+};
+for (const d of ORIGINALS) {
+  d.group ??= 'Favorites';
+  if (RECAT[d.id]) d.cat = RECAT[d.id];
+}
+export const FURNITURE: FurnDef[] = [...ORIGINALS, ...BEDROOM_MORE, ...LIVING_MORE, ...KITCHEN_MORE, ...DECOR_MORE];
+export const FURN_BY_ID: Record<string, FurnDef> = {};
+for (const d of FURNITURE) {
+  if (FURN_BY_ID[d.id]) console.warn(`Duplicate furniture id: ${d.id}`);
+  FURN_BY_ID[d.id] = d;
+}
 
 /** Bounding box for drawing a thumbnail of an item. */
 export function furnViewBox(d: FurnDef): string {

@@ -1,7 +1,7 @@
 // Every place in town: its background, where the floor is, what's there to start with, and which
 // furniture the tray offers.
 import type { FurnCat } from '../art/furniture';
-import { FLOOR_BY_ID, WALL_BY_ID, boutiqueArt, playgroundArt, roomArt, salonArt, schoolArt, theaterArt } from '../art/scenes';
+import { FLOOR_BY_ID, WALL_BY_ID, type HomeRoom, backyardArt, boutiqueArt, playgroundArt, roomArt, salonArt, schoolArt, theaterArt } from '../art/scenes';
 import type { SceneState, Season } from '../types';
 
 export interface PlaceDef {
@@ -11,7 +11,9 @@ export interface PlaceDef {
   building: string;
   floorTop: number;
   floorBottom: number;
-  room?: 'bedroom' | 'kitchen' | 'living';
+  room?: HomeRoom;
+  /** The backyard: an outdoor home room with a restyleable ground and fence. */
+  yard?: boolean;
   wall?: string;
   floor?: string;
   outdoor?: boolean;
@@ -20,9 +22,10 @@ export interface PlaceDef {
   bg: (season: Season, sc: SceneState, extra: { curtains?: boolean; lights?: boolean }) => string;
 }
 
-const room = (r: 'bedroom' | 'kitchen' | 'living') => (season: Season, sc: SceneState) =>
-  roomArt(r, season, WALL_BY_ID[sc.wall ?? 'pinkPlain'] ?? WALL_BY_ID.pinkPlain, FLOOR_BY_ID[sc.floor ?? 'woodLight'] ?? FLOOR_BY_ID.woodLight, 600);
-const HOME_TRAY: FurnCat[] = ['bedroom', 'kitchen', 'living', 'decor', 'wall', 'toys', 'food'];
+const room = (r: HomeRoom) => (season: Season, sc: SceneState) =>
+  roomArt(r, season, WALL_BY_ID[sc.wall ?? 'pinkPlain'] ?? WALL_BY_ID.pinkPlain, FLOOR_BY_ID[sc.floor ?? 'woodLight'] ?? FLOOR_BY_ID.woodLight, 600, { trim: sc.trim, curtain: sc.curtain });
+/** Everything can go anywhere in the house; the tray just orders the tabs. */
+export const HOME_TRAY: FurnCat[] = ['bedroom', 'kids', 'living', 'electronics', 'lighting', 'kitchen', 'bath', 'decor', 'plants', 'wall', 'rugs', 'yard', 'outdoor', 'toys', 'food'];
 
 export const PLACES: Record<string, PlaceDef> = {
   bedroom: {
@@ -51,6 +54,33 @@ export const PLACES: Record<string, PlaceDef> = {
       { def: 'armchair', x: 1290, y: 790 }, { def: 'coffeeTable', x: 780, y: 880 }, { def: 'plant', x: 470, y: 690 },
     ],
     bg: room('living'),
+  },
+  bathroom: {
+    id: 'bathroom', name: 'Bathroom', building: 'home', floorTop: 600, floorBottom: 890, room: 'bathroom', wall: 'wall-tiles-0', floor: 'floor-hex-0', tray: HOME_TRAY,
+    initial: [
+      { def: 'f-bathmat-sweet', x: 430, y: 850 }, { def: 'f-bathmirror-sweet', x: 760, y: 250 }, { def: 'f-towelrack-sweet', x: 540, y: 330 },
+      { def: 'f-shower-sweet', x: 160, y: 700 }, { def: 'f-bathtub-sweet', x: 430, y: 760 }, { def: 'f-bathsink-sweet', x: 760, y: 700 },
+      { def: 'f-toilet-sweet', x: 1000, y: 720 }, { def: 'f-washer-sweet', x: 1450, y: 720 }, { def: 'duck', x: 520, y: 700 },
+    ],
+    bg: room('bathroom'),
+  },
+  playroom: {
+    id: 'playroom', name: 'Playroom', building: 'home', floorTop: 600, floorBottom: 890, room: 'playroom', wall: 'wall-confetti-0', floor: 'floor-carpet-0', tray: HOME_TRAY,
+    initial: [
+      { def: 'rugHeart', x: 760, y: 830 }, { def: 'window2', x: 300, y: 90 }, { def: 'f-toyshelf-sweet', x: 130, y: 700 }, { def: 'f-playtent-sweet', x: 360, y: 740 },
+      { def: 'f-easel-sweet', x: 1080, y: 720 }, { def: 'f-dollhouse-sweet', x: 1400, y: 720 }, { def: 'f-rockinghorse-sweet', x: 880, y: 760 },
+      { def: 'f-ballpit-sweet', x: 640, y: 860 }, { def: 'blocks', x: 1180, y: 860 }, { def: 'teddyToy', x: 560, y: 690 },
+    ],
+    bg: room('playroom'),
+  },
+  backyard: {
+    id: 'backyard', name: 'Backyard', building: 'home', floorTop: 600, floorBottom: 890, yard: true, outdoor: true, floor: 'floor-grass-0', tray: HOME_TRAY,
+    initial: [
+      { def: 'f-gardenbed-sweet', x: 760, y: 630 }, { def: 'f-playhouse-sweet', x: 1450, y: 650 }, { def: 'f-hammock-sweet', x: 180, y: 790 },
+      { def: 'f-picnic-sweet', x: 1000, y: 700 }, { def: 'f-bbq-sweet', x: 1260, y: 720 }, { def: 'f-trampoline-sweet', x: 1250, y: 860 },
+      { def: 'f-pool-sweet', x: 620, y: 840 },
+    ],
+    bg: (s, sc) => backyardArt(s, FLOOR_BY_ID[sc.floor ?? 'floor-grass-0'] ?? FLOOR_BY_ID['floor-grass-0'], sc.trim ?? '#ffffff'),
   },
   school: {
     id: 'school', name: 'School', building: 'school', floorTop: 600, floorBottom: 890, tray: ['school', 'decor', 'toys', 'food'],
@@ -91,5 +121,5 @@ export const PLACES: Record<string, PlaceDef> = {
   },
 };
 
-export const HOME_ROOMS = ['bedroom', 'living', 'kitchen'];
+export const HOME_ROOMS = ['bedroom', 'living', 'kitchen', 'bathroom', 'playroom', 'backyard'];
 export const BUILDING_FIRST_PLACE: Record<string, string> = { home: 'bedroom', school: 'school', playground: 'playground', theater: 'theater', salon: 'salon', boutique: 'boutique' };

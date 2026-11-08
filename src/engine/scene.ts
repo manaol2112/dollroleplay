@@ -13,6 +13,9 @@ import { pianoNote, sound } from './audio';
 import { burst } from './particles';
 
 const NS = 'http://www.w3.org/2000/svg';
+const k = (it: PlacedItem) => it.scale ?? 1;
+const itemTransform = (it: PlacedItem) => `translate(${it.x.toFixed(1)} ${it.y.toFixed(1)})${k(it) !== 1 ? ` scale(${k(it)})` : ''}`;
+const SIZES = [1, 1.25, 0.8];
 const MAX_ITEMS = 70;
 
 export interface SceneHooks {
@@ -236,7 +239,7 @@ export class SceneView {
     // Small things get an invisible pad around them so little fingers can grab them.
     const pad = def.mount === 'prop' ? `<rect x="${-Math.max(def.w, 90) / 2}" y="${-Math.max(def.h, 90) - 6}" width="${Math.max(def.w, 90)}" height="${Math.max(def.h, 90) + 12}" fill="transparent"/>` : '';
     el.innerHTML = `${sh}<g class="lift">${pad}<g${flip}>${def.art(color, on)}</g></g>`;
-    el.setAttribute('transform', `translate(${it.x.toFixed(1)} ${it.y.toFixed(1)})`);
+    el.setAttribute('transform', itemTransform(it));
     if (def.front) {
       let fe = this.els.get('f' + it.uid);
       if (!fe) {
@@ -251,7 +254,7 @@ export class SceneView {
   }
 
   private seatWorld(it: PlacedItem, s: SeatDef): { x: number; y: number } {
-    return { x: it.x + (it.flip ? -s.x : s.x), y: it.y + s.y };
+    return { x: it.x + (it.flip ? -s.x : s.x) * k(it), y: it.y + s.y * k(it) };
   }
 
   syncDoll(d: Doll): void {
@@ -280,10 +283,17 @@ export class SceneView {
       d.y = y;
       if (s.anim) {
         const sg = it.flip ? -1 : 1;
-        const px = sg * (s.anim.pivot[0] - s.x);
-        const py = s.anim.pivot[1] - s.y;
-        const a = s.anim.amp * sg;
-        wrapOpen = `<g><animateTransform attributeName="transform" type="rotate" values="${-a} ${px} ${py};${a} ${px} ${py};${-a} ${px} ${py}" dur="${s.anim.dur}s" begin="${-(s.anim.phase ?? 0)}s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/>`;
+        const spline = 'calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"';
+        const begin = `begin="${-(s.anim.phase ?? 0)}s"`;
+        if (s.anim.kind === 'bounce') {
+          const up = (s.anim.amp * k(it)).toFixed(1);
+          wrapOpen = `<g><animateTransform attributeName="transform" type="translate" values="0 0;0 ${-up};0 0" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite" ${spline}/>`;
+        } else {
+          const px = sg * (s.anim.pivot[0] - s.x) * k(it);
+          const py = (s.anim.pivot[1] - s.y) * k(it);
+          const a = s.anim.amp * sg;
+          wrapOpen = `<g><animateTransform attributeName="transform" type="rotate" values="${-a} ${px} ${py};${a} ${px} ${py};${-a} ${px} ${py}" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite" ${spline}/>`;
+        }
       }
       if (pose === 'sleep') extra = `<g class="zzz" transform="translate(${-hipHeight(d.look) - 40} -90)"><text>z</text><text x="22" y="-26">z</text><text x="44" y="-56">Z</text></g>`;
     }
@@ -604,7 +614,7 @@ export class SceneView {
   };
 
   private moveItemEl(it: PlacedItem): void {
-    const tr = `translate(${it.x.toFixed(1)} ${it.y.toFixed(1)})`;
+    const tr = itemTransform(it);
     this.els.get('i' + it.uid)?.setAttribute('transform', tr);
     this.els.get('f' + it.uid)?.setAttribute('transform', tr);
   }
@@ -635,9 +645,9 @@ export class SceneView {
       if (banned.has(it.uid)) continue;
       const def = FURN_BY_ID[it.def];
       for (const s of def.surfaces ?? []) {
-        const x1 = it.flip ? it.x - s.x2 : it.x + s.x1;
-        const x2 = it.flip ? it.x - s.x1 : it.x + s.x2;
-        const sy = it.y + s.y;
+        const x1 = it.flip ? it.x - s.x2 * k(it) : it.x + s.x1 * k(it);
+        const x2 = it.flip ? it.x - s.x1 * k(it) : it.x + s.x2 * k(it);
+        const sy = it.y + s.y * k(it);
         if (x >= x1 + 6 && x <= x2 - 6 && sy >= y - tol && sy <= y + tol * 4 && (!best || sy < best.y)) best = { it, y: sy };
       }
     }
@@ -892,11 +902,12 @@ export class SceneView {
     void el?.getBoundingClientRect();
     el?.classList.add('wobble');
     void e;
-    const topY = def.mount === 'floor' || def.mount === 'prop' ? it.y - def.h : it.y - def.h / 2;
+    const topY = def.mount === 'floor' || def.mount === 'prop' ? it.y - def.h * k(it) : it.y - (def.h / 2) * k(it);
     const sp = this.toScreen(it.x, topY);
     const btns = [
       def.color ? `<button class="pop-btn" data-act="paint" title="Color">${icon('paint')}</button>` : '',
       `<button class="pop-btn" data-act="flip" title="Flip">${icon('flip')}</button>`,
+      `<button class="pop-btn size" data-act="size" title="Size"><b>${k(it) > 1 ? 'L' : k(it) < 1 ? 'S' : 'M'}</b></button>`,
       `<button class="pop-btn" data-act="trash" title="Put away">${icon('trash')}</button>`,
     ].join('');
     this.showPopup(sp.x, sp.y, btns, (act) => {
@@ -914,6 +925,19 @@ export class SceneView {
         for (const d of this.dollsOn(it)) this.syncDoll(d);
         sound.tap();
         G.changed();
+        return true;
+      }
+      if (act === 'size') {
+        it.scale = SIZES[(SIZES.indexOf(k(it)) + 1) % SIZES.length];
+        if (it.scale === 1) delete it.scale;
+        this.syncItem(it);
+        for (const d of this.dollsOn(it)) this.syncDoll(d);
+        for (const dep of this.dependents(it)) this.settleItem(dep);
+        this.sort();
+        sound.boing();
+        const b = this.popup.querySelector('.pop-btn.size b');
+        if (b) b.textContent = k(it) > 1 ? 'L' : k(it) < 1 ? 'S' : 'M';
+        G.bump('resize');
         return true;
       }
       if (act === 'trash') this.removeItem(it);

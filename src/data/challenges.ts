@@ -1,5 +1,6 @@
 // Challenges that pay coins. Four are active at a time, in order; when the list runs out, endless
 // repeatable ones take over so there is always something to earn.
+import { FURN_BY_ID } from '../art/furniture';
 import { WEAR_BY_ID } from '../art/wear';
 import type { Season } from '../types';
 import type { GameState } from './state';
@@ -55,7 +56,25 @@ export const CHALLENGES: ChallengeDef[] = [
   { id: 'goal5', text: 'Kick 5 soccer goals', icon: 'star', reward: 40, target: 5, stat: 'goal' },
   { id: 'basket30', text: 'Score 30 baskets', icon: 'toy', reward: 90, target: 30, stat: 'basket' },
   { id: 'goal20', text: 'Kick 20 soccer goals', icon: 'star', reward: 90, target: 20, stat: 'goal' },
+  { id: 'floor1', text: 'Put a new floor in a room', icon: 'floor', reward: 25, target: 1, stat: 'floor' },
+  { id: 'resize1', text: 'Make something bigger or smaller', icon: 'decorate', reward: 25, target: 1, stat: 'resize' },
+  { id: 'matchRoom', text: 'Decorate a room with 4 matching things', icon: 'home', reward: 60, target: 4, check: (s) => matching(s) },
+  { id: 'everyRoom', text: 'Put something in all 6 home rooms', icon: 'home', reward: 60, target: 6, check: (s) => ['bedroom', 'living', 'kitchen', 'bathroom', 'playroom', 'backyard'].filter((r) => (s.scenes[r]?.items.length ?? 0) > 0).length },
+  { id: 'furniture30', text: 'Decorate with 30 things', icon: 'decorate', reward: 120, target: 30, stat: 'placeFurniture' },
 ];
+
+/** The most furniture from one design collection in any single home room. */
+function matching(s: GameState): number {
+  let best = 0;
+  for (const r of ['bedroom', 'living', 'kitchen', 'bathroom', 'playroom', 'backyard']) {
+    const m: Record<string, number> = {};
+    for (const it of s.scenes[r]?.items ?? []) {
+      const st = FURN_BY_ID[it.def]?.style;
+      if (st) best = Math.max(best, (m[st] = (m[st] ?? 0) + 1));
+    }
+  }
+  return best;
+}
 
 export const SEASON_CHALLENGES: ChallengeDef[] = [
   { id: 'dress-spring', text: 'Spring style: wear 2 spring things', icon: 'flower', reward: 40, target: 2, season: 'spring', check: dressedFor('spring') },

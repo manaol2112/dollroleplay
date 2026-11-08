@@ -22,9 +22,16 @@ pass, updates the live game.
   coats, shoes, hats and bows, glasses and face, necklaces, things to hold, wings and bags), 33 hairstyles,
   eyes, mouths, makeup, stickers, and beards for grown-up men. Recolor clothes and add patterns. Girls and
   boys, in kid, teen and grown-up sizes. Anyone can wear anything.
-- **Decorate:** drag furniture, appliances and decorations into the bedroom, living room and kitchen. Tap
-  things to use them: lamps, TV, fireplace, stove, sink, fridge (out pops a snack!), toy chest and more.
-  Tap again for paint, flip and put-away buttons. **Room style** changes wallpaper and floors.
+- **Decorate:** six home rooms (bedroom, living room, kitchen, bathroom, playroom and backyard) and over
+  700 pieces of furniture, appliances and decor in 11 design collections (Sweet, Princess, Modern, Cottage,
+  Rainbow, Space, Beach, Candy, Woodland, Boho, Retro). Open **Decorate** for the full catalog or drag from
+  the tray. Tap things to use them (lamps, TVs, ovens, showers, washing machines, doors, windows...), and
+  use the paint, flip, size and put-away buttons. **Room style** has 106 wallpapers, 49 floors, and trim
+  and curtain colors.
+- **Salon nails:** paint, decorate and dry nails; the manicure shows on the doll.
+- **Sports:** basketball and soccer penalty kicks at the playground.
+- **Music:** piano, xylophone, guitar, harp, violin, flute, trumpet and drums at the theater.
+- **School:** lessons for 1st to 5th grade.
 - **Snacks:** drop food on a friend to feed them.
 - **School:** take a lesson (counting, adding, patterns) for coins, or draw on the chalkboard.
 - **Theater:** play the piano freely, or pick a song and follow the glowing keys. The audience cheers.

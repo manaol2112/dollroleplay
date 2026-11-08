@@ -3,6 +3,7 @@
 import type { Season } from '../types';
 import { dark, light } from './color';
 import { roundRectD } from './furniture';
+import { FLOOR_BY_ID, type FloorStyle, type WallStyle, floorArt, wallArt } from './roomstyle';
 import { bowG, flowerG, heartD, sparkleD, starD } from './wear';
 
 const f = (n: number) => n.toFixed(1);
@@ -130,57 +131,7 @@ export function picketFence(y: number, x0 = -600, x1 = 2200, c = '#ffffff'): str
 }
 
 // ---------------- rooms ----------------
-export interface WallStyle { id: string; name: string; price: number; color: string; pattern: string; }
-export interface FloorStyle { id: string; name: string; price: number; kind: 'wood' | 'tiles' | 'carpet' | 'marble'; a: string; b: string; }
-
-export const WALLS: WallStyle[] = [
-  { id: 'pinkPlain', name: 'Pink', price: 0, color: '#ffd9e8', pattern: 'none' },
-  { id: 'lilacDots', name: 'Lilac Dots', price: 0, color: '#e6d4ff', pattern: 'dots' },
-  { id: 'mintStripes', name: 'Mint Stripes', price: 0, color: '#c9f2e3', pattern: 'stripes' },
-  { id: 'peach', name: 'Peach', price: 0, color: '#ffe2cc', pattern: 'none' },
-  { id: 'skyStars', name: 'Starry Sky', price: 30, color: '#bfe0ff', pattern: 'stars' },
-  { id: 'hearts', name: 'Sweet Hearts', price: 30, color: '#ffc7dc', pattern: 'hearts' },
-  { id: 'lemon', name: 'Lemon Check', price: 30, color: '#fff2b8', pattern: 'check' },
-  { id: 'garden', name: 'Flower Garden', price: 40, color: '#d6f5c9', pattern: 'flowers' },
-  { id: 'berry', name: 'Berry Stars', price: 40, color: '#d78ab8', pattern: 'stars' },
-  { id: 'night', name: 'Night Sky', price: 50, color: '#5a5aa8', pattern: 'stars' },
-  { id: 'cream', name: 'Cream', price: 0, color: '#fff6ea', pattern: 'none' },
-  { id: 'coral', name: 'Coral Dots', price: 30, color: '#ffb8a8', pattern: 'dots' },
-];
-export const FLOORS: FloorStyle[] = [
-  { id: 'woodLight', name: 'Honey Wood', price: 0, kind: 'wood', a: '#e8c39a', b: '#d4a77a' },
-  { id: 'woodDark', name: 'Cocoa Wood', price: 0, kind: 'wood', a: '#b98160', b: '#9e6a4c' },
-  { id: 'tilesPink', name: 'Pink Tiles', price: 0, kind: 'tiles', a: '#ffffff', b: '#ffc7dc' },
-  { id: 'tilesMint', name: 'Mint Tiles', price: 20, kind: 'tiles', a: '#ffffff', b: '#b8ecd9' },
-  { id: 'carpetLilac', name: 'Lilac Carpet', price: 20, kind: 'carpet', a: '#d9c4f5', b: '#cbb2ee' },
-  { id: 'carpetPink', name: 'Fluffy Pink', price: 20, kind: 'carpet', a: '#ffc2d9', b: '#ffb0cd' },
-  { id: 'marble', name: 'Marble', price: 40, kind: 'marble', a: '#f8f6fa', b: '#dcd6e6' },
-  { id: 'checker', name: 'Checkerboard', price: 30, kind: 'tiles', a: '#fff', b: '#4a4a5e' },
-];
-export const WALL_BY_ID = Object.fromEntries(WALLS.map((w) => [w.id, w]));
-export const FLOOR_BY_ID = Object.fromEntries(FLOORS.map((w) => [w.id, w]));
-
-export function floorArt(fl: FloorStyle, top: number): string {
-  let g = R(-600, top, 2800, 1400, 0, fl.a);
-  if (fl.kind === 'wood') {
-    for (let row = 0, y = top; y < top + 900; row++, y += 46) {
-      g += R(-600, y, 2800, 3, 0, fl.b);
-      for (let x = -600 + ((row * 173) % 260); x < 2200; x += 260) g += R(x, y, 3, 46, 0, fl.b) + R(x + 40, y + 14, 70, 3, 1.5, light(fl.a, 0.25), 'opacity="0.5"');
-    }
-  } else if (fl.kind === 'tiles') {
-    for (let row = 0, y = top; y < top + 900; row++, y += 70) for (let col = 0, x = -600; x < 2200; col++, x += 90) if ((row + col) % 2) g += R(x, y, 90, 70, 0, fl.b);
-    g += R(-600, top, 2800, 1400, 0, 'url(#g-glass)', 'opacity="0.25"');
-  } else if (fl.kind === 'carpet') {
-    for (let i = 0; i < 160; i++) g += C(((i * 397) % 2800) - 600, top + 10 + ((i * 131) % 700), 3, fl.b);
-  } else {
-    for (let i = 0; i < 9; i++) {
-      const x = ((i * 311) % 2400) - 400;
-      g += P(`M${x} ${top} q40 80 10 160 t30 200 t-20 200`, 'none', `stroke="${fl.b}" stroke-width="3" opacity="0.8"`);
-    }
-    for (let y = top; y < top + 900; y += 120) g += R(-600, y, 2800, 2, 0, fl.b, 'opacity="0.6"');
-  }
-  return g + R(-600, top, 2800, 1400, 0, 'url(#g-floorDepth)');
-}
+export { FLOORS, FLOOR_BY_ID, WALLS, WALL_BY_ID, floorArt, type FloorStyle, type WallStyle } from './roomstyle';
 
 export function windowArt(x: number, y: number, w: number, h: number, s: Season, curtain: string, night = false): string {
   const id = uid('win');
@@ -212,20 +163,48 @@ export function windowArt(x: number, y: number, w: number, h: number, s: Season,
   return g;
 }
 
-export function roomArt(room: 'bedroom' | 'kitchen' | 'living', s: Season, wall: WallStyle, floor: FloorStyle, floorTop: number): string {
-  let g = full(wall.color);
-  if (wall.pattern !== 'none') g += full(`url(#w-${wall.pattern})`);
-  g += full('url(#g-wallDepth)');
-  g += R(-600, -40, 2800, 26, 0, '#ffffff', 'opacity="0.8"') + R(-600, -14, 2800, 6, 0, dark(wall.color, 0.1), 'opacity="0.5"');
-  if (room === 'bedroom') g += windowArt(1120, 120, 260, 250, s, '#ff9ec7');
-  if (room === 'kitchen') {
+export type HomeRoom = 'bedroom' | 'kitchen' | 'living' | 'bathroom' | 'playroom';
+const ROOM_WINDOWS: Record<HomeRoom, [number, number, number, number, string]> = {
+  bedroom: [1120, 120, 260, 250, '#ff9ec7'],
+  kitchen: [660, 90, 280, 200, '#7fd8c0'],
+  living: [560, 100, 420, 280, '#c99bff'],
+  bathroom: [1180, 110, 200, 200, '#8fc8ff'],
+  playroom: [520, 90, 520, 280, '#ffd36b'],
+};
+
+export function roomArt(room: HomeRoom, s: Season, wall: WallStyle, floor: FloorStyle, floorTop: number, opts: { trim?: string; curtain?: string } = {}): string {
+  const trim = opts.trim ?? '#ffffff';
+  let g = wallArt(wall, -600, -500, 2200, floorTop);
+  g += R(-600, -40, 2800, 26, 0, trim, 'opacity="0.85"') + R(-600, -14, 2800, 6, 0, dark(trim, 0.15), 'opacity="0.5"');
+  if (room === 'kitchen' && (wall.kind ?? 'paint') !== 'tiles') {
     g += R(-600, floorTop - 300, 2800, 120, 0, '#ffffff', 'opacity="0.55"');
     for (let x = -600; x < 2200; x += 40) for (let y = floorTop - 300; y < floorTop - 180; y += 30) g += R(x + 2, y + 2, 36, 26, 4, light(wall.color, 0.4), 'opacity="0.6"');
-    g += windowArt(660, 90, 280, 200, s, '#7fd8c0');
   }
-  if (room === 'living') g += windowArt(560, 100, 420, 280, s, '#c99bff');
+  const [wx, wy, ww, wh, cdef] = ROOM_WINDOWS[room];
+  g += windowArt(wx, wy, ww, wh, s, opts.curtain ?? cdef);
   g += floorArt(floor, floorTop);
-  g += R(-600, floorTop - 22, 2800, 26, 4, '#ffffff') + R(-600, floorTop + 2, 2800, 6, 0, '#3a1d3f', 'opacity="0.12"');
+  g += R(-600, floorTop - 22, 2800, 26, 4, trim) + R(-600, floorTop - 22, 2800, 26, 4, 'url(#g-shadeY)', 'opacity="0.5"') + R(-600, floorTop + 2, 2800, 6, 0, '#3a1d3f', 'opacity="0.12"');
+  return g;
+}
+
+/** The backyard: the back of the house on the left, hills beyond the fence, and a ground you can restyle. */
+export function backyardArt(s: Season, floor: FloorStyle, fence = '#ffffff'): string {
+  let g = landscape(s, 520, { trees: [760, 1100, 1450, 1850] });
+  // back of the house with a porch
+  const wall = '#ffd9e8';
+  g += '<g transform="translate(230 0)">';
+  g += R(-600, 160, 900, 440, 0, wall) + R(-600, 160, 900, 440, 0, 'url(#g-shadeX)') + P('M-640 170 L-150 -40 L340 170Z', '#ff6f9f') + P('M-640 170 L-150 -40 L-150 170Z', '#fff', 'opacity="0.12"');
+  if (s === 'winter') g += P('M-644 172 L-150 -44 L344 172 Q200 158 60 172 Q-100 156 -250 172 Q-420 158 -644 172Z', '#ffffff');
+  for (const x of [-480, 120]) g += R(x - 8, 228, 136, 136, 10, '#fff') + R(x, 236, 120, 120, 6, '#fff1b8') + R(x, 236, 120, 120, 6, 'url(#g-glass)') + R(x + 58, 236, 4, 120, 0, '#fff') + R(x, 294, 120, 4, 0, '#fff') + R(x - 14, 364, 148, 14, 5, '#a86b4a');
+  g += R(-150, 330, 130, 270, 16, '#b05a7a') + R(-140, 340, 110, 250, 12, '#d07a9a') + R(-128, 352, 86, 90, 8, '#fff1b8') + C(-46, 470, 6, '#ffd24a');
+  g += R(-260, 520, 560, 80, 6, '#d9a477') + R(-260, 520, 560, 12, 4, '#c98a5a');
+  for (let x = -250; x < 300; x += 46) g += R(x, 532, 4, 68, 0, '#b07a4f', 'opacity="0.6"');
+  g += R(-268, 400, 16, 200, 6, '#ffffff') + R(284, 400, 16, 200, 6, '#ffffff') + R(-280, 392, 592, 18, 6, '#ffffff');
+  g += '</g>';
+  g += picketFence(600, 530, 2200, fence);
+  g += floorArt(floor, 596);
+  if (s === 'winter' && floor.kind === 'grass') for (let i = 0; i < 40; i++) g += E(((i * 397) % 2800) - 600, 620 + ((i * 131) % 360), 46, 10, '#ffffff', 'opacity="0.9"');
+  if (s === 'fall' && floor.kind === 'grass') for (let i = 0; i < 60; i++) g += E(((i * 397) % 2800) - 600, 620 + ((i * 131) % 360), 8, 4.5, ['#ff8a3d', '#e8573d', '#ffc23d'][i % 3], `transform="rotate(${(i * 47) % 180} ${((i * 397) % 2800) - 600} ${620 + ((i * 131) % 360)})"`);
   return g;
 }
 

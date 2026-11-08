@@ -2,6 +2,7 @@
 import { renderDoll } from '../art/doll';
 import { FURNITURE, FURN_BY_ID, furnThumb, type FurnCat } from '../art/furniture';
 import { FLOORS, WALLS, ground, landscape } from '../art/scenes';
+import { CURTAINS, TRIMS, floorSwatch, wallSwatch } from '../art/roomstyle';
 import { TOWN_H, TOWN_LAYER, TOWN_SPOTS, TOWN_TOP, TOWN_W, townLayers } from '../art/town';
 import { BUILDING_FIRST_PLACE, HOME_ROOMS, PLACES } from '../data/places';
 import { claimableCount, dailyReady } from '../data/state';
@@ -13,9 +14,11 @@ import type { Look, Season } from '../types';
 import { openCloset } from './closet';
 import { openNails } from './nails';
 import { openSports } from './sports';
-import { confirmBox, el, esc, floorThumb, headThumb, wallThumb } from './dom';
+import { confirmBox, el, esc, headThumb, still } from './dom';
 import { icon } from './icons';
-import { SEASON_ICON, SEASON_NAME, openChallenges, openLesson, openPiano, openSeasons, openSettings, openShop } from './panels';
+import { SEASON_ICON, SEASON_NAME, openCatalog, openChallenges, openLesson, openPiano, openSeasons, openSettings, openShop } from './panels';
+
+const ROOM_SHORT: Record<string, string> = { bedroom: 'Bedroom', living: 'Living', kitchen: 'Kitchen', bathroom: 'Bath', playroom: 'Playroom', backyard: 'Yard' };
 
 type Screen = { kind: 'title' } | { kind: 'map' } | { kind: 'place'; id: string };
 type TrayTab = 'friends' | 'style' | FurnCat;
@@ -24,10 +27,17 @@ const CAT_INFO: Record<string, { name: string; icon: string }> = {
   friends: { name: 'Friends', icon: 'person' },
   style: { name: 'Room style', icon: 'wallpaper' },
   bedroom: { name: 'Bedroom', icon: 'bed' },
+  kids: { name: 'Kids', icon: 'toy' },
   kitchen: { name: 'Kitchen', icon: 'fridge' },
+  bath: { name: 'Bath', icon: 'bath' },
   living: { name: 'Living', icon: 'sofa' },
+  electronics: { name: 'Gadgets', icon: 'tv' },
+  lighting: { name: 'Lights', icon: 'lamp' },
   decor: { name: 'Decor', icon: 'decor' },
+  plants: { name: 'Plants', icon: 'plant' },
   wall: { name: 'Walls', icon: 'wall' },
+  rugs: { name: 'Rugs', icon: 'rug' },
+  yard: { name: 'Yard', icon: 'tree' },
   toys: { name: 'Toys', icon: 'toy' },
   food: { name: 'Food', icon: 'apple' },
   outdoor: { name: 'Park', icon: 'tree' },
@@ -288,7 +298,7 @@ export class App {
     this.stage.appendChild(actions);
     this.renderActions(actions);
     if (!place.room && this.trayTab !== 'friends' && !place.tray.includes(this.trayTab as FurnCat)) this.trayTab = 'friends';
-    if (place.room && this.trayTab !== 'friends' && this.trayTab !== 'style' && !place.tray.includes(this.trayTab as FurnCat)) this.trayTab = 'friends';
+    if ((place.room || place.yard) && this.trayTab !== 'friends' && this.trayTab !== 'style' && !place.tray.includes(this.trayTab as FurnCat)) this.trayTab = 'friends';
     this.renderTray();
     requestAnimationFrame(() => scene.layout());
     if (!G.s.dolls.some((d) => d.place === id) && G.s.stats[`hint-${id}`] === undefined) {
@@ -310,6 +320,7 @@ export class App {
     if (id === 'salon') html += b('makeover', 'scissors', 'Makeover') + b('nails', 'makeup', 'Nails');
     if (id === 'playground') html += b('sports', 'toy', 'Sports');
     if (id === 'boutique') html += b('shop', 'bag', 'Shop');
+    if (PLACES[id]?.room || PLACES[id]?.yard) html += b('decorate', 'decorate', 'Decorate');
     box.innerHTML = html;
     box.onclick = (e) => {
       const t = e.target as Element;
@@ -360,6 +371,7 @@ export class App {
         this.openClosetFor(target.id, 'salon');
       }
       if (act === 'shop') openShop();
+      if (act === 'decorate') openCatalog((fid) => this.scene?.dropIn('item', fid));
       this.renderActions(box);
     };
   }
@@ -419,12 +431,16 @@ export class App {
   private trayTabs(): TrayTab[] {
     if (this.screen.kind !== 'place') return [];
     const p = PLACES[this.screen.id];
-    return ['friends', ...(p.room ? (['style'] as TrayTab[]) : []), ...p.tray];
+    return ['friends', ...(p.room || p.yard ? (['style'] as TrayTab[]) : []), ...p.tray];
   }
+
+  private trayLazy: IntersectionObserver | null = null;
+  private trayThumbs = new Map<string, () => string>();
 
   private renderTray(animate = false): void {
     const tray = this.tray;
     if (!tray || this.screen.kind !== 'place') return;
+    this.trayThumbs.clear();
     const scroll = tray.querySelector('.tray-list')?.scrollLeft ?? 0;
     const tabs = this.trayTabs();
     const place = PLACES[this.screen.id];
@@ -434,19 +450,52 @@ export class App {
         `<div class="tcard add" data-kind="newfriend">${icon('plus')}<span class="lbl">New friend</span></div>`;
     } else if (this.trayTab === 'style') {
       const sc = G.s.scenes[place.id];
-      cards = WALLS.map((w) => this.styleCard('wall', w.id, wallThumb(w.id), w.name, sc.wall === w.id)).join('') + `<div class="tsep"></div>` +
-        FLOORS.map((f) => this.styleCard('floor', f.id, floorThumb(f.id), f.name, sc.floor === f.id)).join('');
+      const sec = (label: string) => `<div class="tsec"><span>${esc(label)}</span></div>`;
+      const bygroup = <T extends { group?: string }>(xs: T[]) => {
+        const m = new Map<string, T[]>();
+        for (const x of xs) {
+          const g = x.group ?? 'More';
+          if (!m.has(g)) m.set(g, []);
+          m.get(g)!.push(x);
+        }
+        return [...m.entries()];
+      };
+      if (place.room) {
+        for (const [grp, ws] of bygroup(WALLS)) cards += sec(`Wallpaper · ${grp}`) + ws.map((w) => this.styleCard('wall', w.id, w.name, sc.wall === w.id, () => wallSwatch(w))).join('');
+        for (const [grp, fs] of bygroup(FLOORS.filter((x) => !x.outdoor))) cards += sec(`Floor · ${grp}`) + fs.map((x) => this.styleCard('floor', x.id, x.name, sc.floor === x.id, () => floorSwatch(x))).join('');
+      } else for (const [grp, fs] of bygroup(FLOORS.filter((x) => x.outdoor))) cards += sec(`Ground · ${grp}`) + fs.map((x) => this.styleCard('floor', x.id, x.name, sc.floor === x.id, () => floorSwatch(x))).join('');
+      cards += sec(place.room ? 'Trim' : 'Fence') + TRIMS.map(([nm, c]) => `<div class="tcard dotcard${(sc.trim ?? '#ffffff') === c ? ' on' : ''}" data-kind="trim" data-id="${c}"><i class="bigdot" style="background:${c}"></i><span class="lbl">${esc(nm)}</span></div>`).join('');
+      if (place.room) cards += sec('Curtains') + CURTAINS.map(([nm, c]) => `<div class="tcard dotcard${sc.curtain === c ? ' on' : ''}" data-kind="curtain" data-id="${c}"><i class="bigdot" style="background:${c}"></i><span class="lbl">${esc(nm)}</span></div>`).join('');
     } else {
       const list = FURNITURE.filter((f) => f.cat === this.trayTab);
-      cards = list.map((f) => {
+      let last = '';
+      for (const f of list) {
+        if (f.group && f.group !== last) {
+          last = f.group;
+          cards += `<div class="tsec"><span>${esc(f.group)}</span></div>`;
+        }
         const locked = !G.owns(f.id);
-        return `<div class="tcard${locked ? ' locked' : ''}" data-kind="item" data-id="${f.id}">${furnThumb(f)}<span class="lbl">${esc(f.name)}</span>${locked ? `<span class="price">${icon('coin')}${f.price}</span>` : ''}</div>`;
-      }).join('');
+        this.trayThumbs.set('item:' + f.id, () => furnThumb(f));
+        cards += `<div class="tcard${locked ? ' locked' : ''}" data-kind="item" data-id="${f.id}" data-thumb="item:${f.id}"><i class="thumb-wait"></i><span class="lbl">${esc(f.name)}</span>${locked ? `<span class="price">${icon('coin')}${f.price}</span>` : ''}</div>`;
+      }
     }
     tray.innerHTML = `<div class="tray-tabs">${tabs.map((t) => `<button class="ttab${t === this.trayTab ? ' on' : ''}" data-ttab="${t}" title="${CAT_INFO[t].name}">${icon(CAT_INFO[t].icon)}<span>${CAT_INFO[t].name}</span></button>`).join('')}</div>
       <div class="tray-list">${cards}</div><div class="putaway">${icon('trash')}<span>Drop here to put away</span></div>`;
     const listEl = tray.querySelector('.tray-list') as HTMLDivElement;
     listEl.scrollLeft = scroll;
+    // Draw thumbnails only as they scroll into view: some tabs hold over a hundred things.
+    this.trayLazy?.disconnect();
+    this.trayLazy = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const card = e.target as HTMLElement;
+        this.trayLazy!.unobserve(card);
+        const fn = this.trayThumbs.get(card.dataset.thumb!);
+        const wait = card.querySelector('.thumb-wait');
+        if (fn && wait) wait.outerHTML = still(fn());
+      }
+    }, { root: listEl, rootMargin: '0px 500px' });
+    listEl.querySelectorAll('[data-thumb]').forEach((c) => this.trayLazy!.observe(c));
     if (animate) {
       listEl.classList.add('anim');
       listEl.querySelectorAll<HTMLElement>('.tcard').forEach((c, i) => c.style.setProperty('--i', String(Math.min(i, 12))));
@@ -464,10 +513,11 @@ export class App {
     this.bindTrayCards(listEl);
   }
 
-  private styleCard(kind: 'wall' | 'floor', id: string, thumb: string, name: string, on: boolean): string {
+  private styleCard(kind: 'wall' | 'floor', id: string, name: string, on: boolean, thumb: () => string): string {
     const key = `${kind}:${id}`;
     const locked = !G.owns(key);
-    return `<div class="tcard style${on ? ' on' : ''}${locked ? ' locked' : ''}" data-kind="${kind}" data-id="${id}">${thumb}<span class="lbl">${esc(name)}</span>${locked ? `<span class="price">${icon('coin')}${G.price(key)}</span>` : ''}</div>`;
+    this.trayThumbs.set(key, thumb);
+    return `<div class="tcard style${on ? ' on' : ''}${locked ? ' locked' : ''}" data-kind="${kind}" data-id="${id}" data-thumb="${key}"><i class="thumb-wait"></i><span class="lbl">${esc(name)}</span>${locked ? `<span class="price">${icon('coin')}${G.price(key)}</span>` : ''}</div>`;
   }
 
   /**
@@ -571,12 +621,21 @@ export class App {
         else sc.floor = id;
         sound.spray();
         this.scene!.renderBg();
-        if (kind === 'wall') G.bump('wallpaper');
-        else G.changed();
+        G.bump(kind === 'wall' ? 'wallpaper' : 'floor');
         this.renderTray();
       };
       if (G.owns(key)) apply();
-      else this.askBuy(key, card.innerHTML.split('<span class="lbl">')[0], card.querySelector('.lbl')?.textContent ?? '', apply);
+      else this.askBuy(key, this.trayThumbs.get(key)?.() ?? '', card.querySelector('.lbl')?.textContent ?? '', apply);
+      return;
+    }
+    if (kind === 'trim' || kind === 'curtain') {
+      const sc = G.s.scenes[placeId];
+      if (kind === 'trim') sc.trim = id;
+      else sc.curtain = id;
+      sound.spray();
+      this.scene.renderBg();
+      G.changed();
+      this.renderTray();
       return;
     }
     if (kind === 'item') {
@@ -609,7 +668,7 @@ export class App {
     else {
       const p = PLACES[s.id];
       left = `<button class="round-btn" data-hud="map" title="Town map">${icon('map')}</button>`;
-      if (p.room) left += `<div class="room-tabs">${HOME_ROOMS.map((r) => `<button class="pill room${r === s.id ? ' on' : ''}" data-room="${r}">${esc(PLACES[r].name)}</button>`).join('')}</div>`;
+      if (p.room || p.yard) left += `<div class="room-tabs">${HOME_ROOMS.map((r) => `<button class="pill room${r === s.id ? ' on' : ''}" data-room="${r}">${esc(ROOM_SHORT[r] ?? PLACES[r].name)}</button>`).join('')}</div>`;
       else left += `<div class="pill title-pill"><span>${esc(p.name)}</span></div>`;
     }
     this.hud.innerHTML = `<div class="hud-left">${left}</div><div class="hud-right">
