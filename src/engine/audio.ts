@@ -24,8 +24,25 @@ function ac(): AudioContext | null {
   return ctx;
 }
 
+let primed = false;
 export function unlockAudio(): void {
-  ac();
+  const c = ac();
+  if (!c || primed) return;
+  // iOS only lets sound start inside a tap; playing a silent sample there unlocks it for good.
+  const src = c.createBufferSource();
+  src.buffer = c.createBuffer(1, 1, 22050);
+  src.connect(c.destination);
+  src.start(0);
+  primed = true;
+}
+
+/** iPad suspends audio when the app is hidden or after a call; the next tap wakes it. */
+export function keepAudioAwake(): void {
+  const wake = () => {
+    if (!ctx) unlockAudio();
+    else if (ctx.state !== 'running') void ctx.resume();
+  };
+  for (const ev of ['touchend', 'pointerup', 'click', 'keydown']) window.addEventListener(ev, wake, { passive: true });
 }
 
 export function setSound(on: boolean): void {

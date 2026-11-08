@@ -4,7 +4,7 @@ import { FURNITURE, FURN_BY_ID, furnThumb, type FurnCat } from '../art/furniture
 import { FLOORS, WALLS, ground, landscape, townArt } from '../art/scenes';
 import { BUILDING_FIRST_PLACE, HOME_ROOMS, PLACES } from '../data/places';
 import { claimableCount, dailyReady } from '../data/state';
-import { sound, startMusic, unlockAudio } from '../engine/audio';
+import { keepAudioAwake, sound, startMusic, unlockAudio } from '../engine/audio';
 import { burst, celebrate, setWeather } from '../engine/particles';
 import { SceneView } from '../engine/scene';
 import { G, toast } from '../game';
@@ -46,7 +46,7 @@ export class App {
 
   constructor() {
     G.on(() => this.refreshHud());
-    window.addEventListener('pointerdown', () => unlockAudio(), { once: true });
+    keepAudioAwake();
     window.addEventListener('hashchange', () => this.start());
   }
 
@@ -159,7 +159,11 @@ export class App {
     const scene = new SceneView(place, {
       openCloset: (dollId) => this.openClosetFor(dollId),
       trayRect: () => tray.getBoundingClientRect(),
-      onDragState: (on) => tray.classList.toggle('dragging', on),
+      onDragState: (on) => {
+        tray.classList.toggle('dragging', on);
+        // Redraw only after the finger lifts: removing the touched card mid-drag stops touch events on iPad.
+        if (!on) this.renderTray();
+      },
     });
     this.scene = scene;
     this.stage.append(scene.root, tray);
@@ -329,38 +333,77 @@ export class App {
     return `<div class="tcard style${on ? ' on' : ''}${locked ? ' locked' : ''}" data-kind="${kind}" data-id="${id}">${thumb}<span class="lbl">${esc(name)}</span>${locked ? `<span class="price">${icon('coin')}${G.price(key)}</span>` : ''}</div>`;
   }
 
+  /**
+   * The tray handles its own swipes so a finger can go either way: mostly upward pulls a card out
+   * into the room, sideways scrolls the tray. (Letting the browser scroll it means a slightly
+   * diagonal drag on an iPad is taken as a scroll and the card never comes out.)
+   */
   private bindTrayCards(list: HTMLDivElement): void {
-    let press: { card: HTMLElement; x: number; y: number; id: number } | null = null;
-    list.onpointerdown = (e) => {
-      const card = (e.target as Element).closest('.tcard') as HTMLElement | null;
-      if (!card) return;
-      press = { card, x: e.clientX, y: e.clientY, id: e.pointerId };
+    type Press = { card: HTMLElement | null; x: number; y: number; id: number; mode: 'wait' | 'scroll'; sl: number; lx: number; lt: number; v: number };
+    let press: Press | null = null;
+    let glide = 0;
+    const pullOut = (card: HTMLElement, e: PointerEvent) => {
+      if (!this.scene) return;
+      const kind = card.dataset.kind!;
+      const id = card.dataset.id!;
+      if (kind === 'item' && G.owns(id)) this.scene.beginTrayDrag('item', id, e);
+      else if (kind === 'doll') this.scene.beginTrayDrag('doll', id, e);
+      else this.tapCard(card);
     };
-    const move = (e: PointerEvent) => {
-      if (!press || e.pointerId !== press.id || !this.scene) return;
-      const dx = e.clientX - press.x;
-      const dy = e.clientY - press.y;
-      if (dy < -16 && Math.abs(dx) < Math.abs(dy) * 2.5) {
-        const { card } = press;
-        press = null;
-        const kind = card.dataset.kind!;
-        const id = card.dataset.id!;
-        if (kind === 'item' && G.owns(id)) this.scene.beginTrayDrag('item', id, e);
-        else if (kind === 'doll') {
-          this.scene.beginTrayDrag('doll', id, e);
-          window.setTimeout(() => this.renderTray(), 50);
-        } else this.tapCard(card);
+    list.onpointerdown = (e) => {
+      if (press) return;
+      cancelAnimationFrame(glide);
+      const card = (e.target as Element).closest('.tcard') as HTMLElement | null;
+      press = { card, x: e.clientX, y: e.clientY, id: e.pointerId, mode: 'wait', sl: list.scrollLeft, lx: e.clientX, lt: e.timeStamp, v: 0 };
+      try {
+        list.setPointerCapture(e.pointerId);
+      } catch {
+        /* pointer already gone */
       }
     };
-    const up = (e: PointerEvent) => {
+    list.onpointermove = (e) => {
       if (!press || e.pointerId !== press.id) return;
-      const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10;
-      const card = press.card;
-      press = null;
-      if (!moved) this.tapCard(card);
+      const dx = e.clientX - press.x;
+      const dy = e.clientY - press.y;
+      if (press.mode === 'wait') {
+        if (Math.hypot(dx, dy) < 10) return;
+        if (press.card && -dy > Math.abs(dx) * 0.6) {
+          const card = press.card;
+          press = null;
+          return pullOut(card, e);
+        }
+        press.mode = 'scroll';
+      }
+      list.scrollLeft = press.sl - dx;
+      const dt = Math.max(1, e.timeStamp - press.lt);
+      press.v = 0.8 * ((press.lx - e.clientX) / dt) + 0.2 * press.v;
+      press.lx = e.clientX;
+      press.lt = e.timeStamp;
+      // Scrolled sideways first, then went up into the room: still grab the card.
+      const top = this.tray?.getBoundingClientRect().top ?? 0;
+      if (press.card && e.clientY < top - 12) {
+        const card = press.card;
+        press = null;
+        pullOut(card, e);
+      }
     };
-    list.onpointermove = move;
-    list.onpointerup = up;
+    list.onpointerup = (e) => {
+      if (!press || e.pointerId !== press.id) return;
+      const p = press;
+      press = null;
+      if (p.mode === 'wait') {
+        if (p.card) this.tapCard(p.card);
+        return;
+      }
+      let v = p.v * 16;
+      const step = () => {
+        if (Math.abs(v) < 0.5) return;
+        list.scrollLeft += v;
+        v *= 0.94;
+        glide = requestAnimationFrame(step);
+      };
+      glide = requestAnimationFrame(step);
+    };
     list.onpointercancel = () => (press = null);
   }
 

@@ -48,6 +48,8 @@ export class SceneView {
   private expr = new Map<string, Expr>();
   private exprTimers = new Map<string, number>();
   private drag: Drag | null = null;
+  /** The finger (or mouse) doing the current drag; other fingers are ignored. */
+  private pid = -1;
   private vb = { x: 0, y: 0, w: 1600, h: 900 };
   private popup: HTMLDivElement;
   private popupTimer: number | null = null;
@@ -174,7 +176,9 @@ export class SceneView {
       this.els.set('i' + it.uid, el);
     }
     const sh = def.mount === 'floor' ? shadow(def.w * 0.85, 34) : def.mount === 'prop' ? shadow(def.w * 0.9, 14) : '';
-    el.innerHTML = `${sh}<g class="lift"><g${flip}>${def.art(color, on)}</g></g>`;
+    // Small things get an invisible pad around them so little fingers can grab them.
+    const pad = def.mount === 'prop' ? `<rect x="${-Math.max(def.w, 90) / 2}" y="${-Math.max(def.h, 90) - 6}" width="${Math.max(def.w, 90)}" height="${Math.max(def.h, 90) + 12}" fill="transparent"/>` : '';
+    el.innerHTML = `${sh}<g class="lift">${pad}<g${flip}>${def.art(color, on)}</g></g>`;
     el.setAttribute('transform', `translate(${it.x.toFixed(1)} ${it.y.toFixed(1)})`);
     if (def.front) {
       let fe = this.els.get('f' + it.uid);
@@ -329,6 +333,7 @@ export class SceneView {
   beginTrayDrag(kind: 'item' | 'doll', id: string, e: PointerEvent): void {
     this.hidePopup();
     const p = this.toWorld(e.clientX, e.clientY);
+    this.pid = e.pointerId;
     if (kind === 'item') {
       const def = FURN_BY_ID[id];
       const it = this.addItem(id, p.x, p.y + (def.mount === 'floor' || def.mount === 'prop' ? def.h * 0.5 : 0));
@@ -373,7 +378,8 @@ export class SceneView {
       d.x = x;
       d.y = -150;
       this.syncDoll(d);
-      this.settleDoll(d);
+      // Land toward the front of the room so she isn't hidden behind furniture.
+      this.settleDoll(d, this.place.floorTop + 130 + Math.random() * 60);
       sound.giggle();
       G.changed();
     }
@@ -399,6 +405,7 @@ export class SceneView {
   // ---------------- pointer handling ----------------
   private onDown = (e: PointerEvent) => {
     if (this.drag) return;
+    this.pid = e.pointerId;
     const t = e.target as Element;
     if (!t.closest('.scene-popup')) this.hidePopup();
     const p = this.toWorld(e.clientX, e.clientY);
@@ -437,7 +444,7 @@ export class SceneView {
 
   private onMove = (e: PointerEvent) => {
     const dr = this.drag;
-    if (!dr) return;
+    if (!dr || e.pointerId !== this.pid) return;
     const p = this.toWorld(e.clientX, e.clientY);
     if (dr.kind === 'chalk') {
       const pts = dr.stroke.pts;
@@ -493,6 +500,7 @@ export class SceneView {
   }
 
   private onUp = (e: PointerEvent) => {
+    if (e.pointerId !== this.pid) return;
     const dr = this.drag;
     this.unlisten();
     this.drag = null;
@@ -659,8 +667,8 @@ export class SceneView {
     this.settleDoll(d);
   }
 
-  private settleDoll(d: Doll): void {
-    const target = this.floorY(d.y < this.place.floorTop ? this.place.floorTop + 50 : d.y);
+  private settleDoll(d: Doll, landY?: number): void {
+    const target = this.floorY(landY ?? (d.y < this.place.floorTop ? this.place.floorTop + 50 : d.y));
     this.syncDoll(d);
     this.fall(d.y, target, (y) => {
       d.y = y;
