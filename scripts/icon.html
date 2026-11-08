@@ -1,0 +1,8 @@
+<!doctype html><html><body style="margin:0"><div id="g"></div><script type="module">
+import { installDefs } from '/src/art/defs.ts';
+import { renderDoll } from '/src/art/doll.ts';
+import { starterLooks } from '/src/data/looks.ts';
+installDefs();
+const look = starterLooks()[0].look;
+document.getElementById('g').innerHTML = `<svg width="180" height="180" viewBox="-150 -390 300 300"><defs><radialGradient id="bgi" cx="0.5" cy="0.35" r="0.8"><stop offset="0" stop-color="#ffe6f1"/><stop offset="1" stop-color="#ff9ec7"/></radialGradient></defs><rect x="-150" y="-390" width="300" height="300" fill="url(#bgi)"/>${renderDoll(look, { headOnly: true, expr: 'happy' })}</svg>`;
+</script></body></html>
