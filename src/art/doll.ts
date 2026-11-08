@@ -634,6 +634,8 @@ function head(b: Body, look: Look, expr: Expr): string {
 /** Hats that sit over the crown of the head (not headbands, clips or ears). */
 export const COVERS = /beanie|hat\b|hat-|cap\b|cap-|helmet|hood|beret|fedora|newsboy|bandana|santa|witch|visor|bucket|beanie|toque|earflap|chef|pirate|cowboy/i;
 
+const NAIL_SWATCH = (c: string) => ({ 'sp:glitter': '#ffb3d1', 'sp:gold': '#ffd24a', 'sp:chrome': '#d9dbe6', 'sp:holo': '#c99bff', 'sp:galaxy': '#3b2a6b' } as Record<string, string>)[c] ?? c;
+
 export interface DollOpts {
   pose?: Pose;
   expr?: Expr;
@@ -734,6 +736,15 @@ export function renderDoll(look: Look, opts: DollOpts = {}): string {
   for (const side of [-1, 1] as const) {
     const a = armAngle(side);
     let g = cloth(sleevePath(b.armW, b.armLen, 0), look.skin) + `<circle cx="0" cy="${f(b.armLen + 1)}" r="${f(b.armW * 0.6)}" fill="${look.skin}"/><circle cx="0" cy="${f(b.armLen + 1)}" r="${f(b.armW * 0.6)}" fill="url(#g-shadeX)"/>`;
+    // Painted fingertips peek out at the bottom of each hand.
+    if (look.nails?.c.some(Boolean)) {
+      const hr = b.armW * 0.6;
+      const tips = side === 1 ? [1, 2, 3] : [3, 2, 1];
+      tips.forEach((ni, k) => {
+        const c = NAIL_SWATCH(look.nails!.c[ni]);
+        if (c) g += `<ellipse cx="${f((k - 1) * hr * 0.55)}" cy="${f(b.armLen + 1 + hr * 0.78)}" rx="${f(hr * 0.24)}" ry="${f(hr * 0.3)}" fill="${c}" stroke="#fff" stroke-width="0.8"/>`;
+      });
+    }
     for (const slot of order) {
       const it = worn(slot);
       const x = ctx(slot, a);

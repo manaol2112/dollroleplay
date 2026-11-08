@@ -11,6 +11,8 @@ import { SceneView } from '../engine/scene';
 import { G, toast } from '../game';
 import type { Look, Season } from '../types';
 import { openCloset } from './closet';
+import { openNails } from './nails';
+import { openSports } from './sports';
 import { confirmBox, el, esc, floorThumb, headThumb, wallThumb } from './dom';
 import { icon } from './icons';
 import { SEASON_ICON, SEASON_NAME, openChallenges, openLesson, openPiano, openSeasons, openSettings, openShop } from './panels';
@@ -305,7 +307,8 @@ export class App {
       if (sc?.drawMode) html += `<div class="chalks">${['#ffffff', '#ffb3d1', '#ffe680', '#a8e6ff', '#c3f5b0'].map((c) => `<button class="chalk${sc.chalkColor === c ? ' on' : ''}" data-chalk="${c}" style="background:${c}"></button>`).join('')}<button class="chalk eraser${sc.chalkColor === 'erase' ? ' on' : ''}" data-chalk="erase">${icon('eraser')}</button><button class="chalk" data-act="clearboard">${icon('trash')}</button></div>`;
     }
     if (id === 'theater') html += b('piano', 'note', 'Music') + b('curtains', 'curtain', 'Curtains') + b('lights', 'bulb', 'Lights', sc?.lights);
-    if (id === 'salon') html += b('makeover', 'scissors', 'Makeover');
+    if (id === 'salon') html += b('makeover', 'scissors', 'Makeover') + b('nails', 'makeup', 'Nails');
+    if (id === 'playground') html += b('sports', 'toy', 'Sports');
     if (id === 'boutique') html += b('shop', 'bag', 'Shop');
     box.innerHTML = html;
     box.onclick = (e) => {
@@ -336,6 +339,21 @@ export class App {
         sc.renderBg();
       }
       if (act === 'piano') this.togglePiano();
+      if (act === 'nails') {
+        const inChair = sc.dolls().find((d) => d.seat && ['salonChair', 'dryer'].includes(sc.sc.items.find((i) => i.uid === d.seat!.uid)?.def ?? ''));
+        const target = inChair ?? sc.dolls()[0] ?? G.s.dolls[0];
+        openNails(target.id, () => {
+          sc.renderAll();
+          this.refreshHud();
+        });
+      }
+      if (act === 'sports') {
+        this.tray?.classList.add('hidden');
+        openSports(sc.dolls()[0]?.id, () => {
+          this.tray?.classList.remove('hidden');
+          this.refreshHud();
+        });
+      }
       if (act === 'makeover') {
         const inChair = sc.dolls().find((d) => d.seat && ['salonChair', 'dryer'].includes(sc.sc.items.find((i) => i.uid === d.seat!.uid)?.def ?? ''));
         const target = inChair ?? sc.dolls()[0] ?? G.s.dolls[0];

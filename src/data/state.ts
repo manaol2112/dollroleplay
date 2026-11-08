@@ -91,6 +91,7 @@ export function parseState(json: string | null): GameState | null {
     const look = { ...starterLooks()[0].look, ...d.look, wear: { ...(d.look.wear ?? {}) } };
     for (const [slot, w] of Object.entries(look.wear)) if (!w || !WEAR_BY_ID[w.id]) delete look.wear[slot as keyof typeof look.wear];
     if (!HAIR_BY_ID[look.hair]) look.hair = 'long';
+    if (look.nails && !(Array.isArray(look.nails.c) && look.nails.c.length === 5)) delete look.nails;
     return { ...d, look, place: d.place && PLACES[d.place] ? d.place : null, seat: d.seat ?? null };
   });
   if (!raw.boysAdded) {

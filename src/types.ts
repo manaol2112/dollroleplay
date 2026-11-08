@@ -13,6 +13,15 @@ export interface Worn {
   pattern: Pattern;
 }
 
+export const NAIL_COUNT = 5;
+/** A manicure: one polish, design and gem per finger (thumb first). '' means bare. */
+export interface Nails {
+  shape: 'round' | 'square' | 'oval' | 'almond' | 'coffin';
+  c: string[];
+  art: string[];
+  gem: (string | null)[];
+}
+
 export interface Look {
   age: Age;
   /** Boy or girl body and face; any clothes fit either. */
@@ -29,6 +38,7 @@ export interface Look {
   freckles: boolean;
   sticker: string | null;
   wear: Partial<Record<Slot, Worn>>;
+  nails?: Nails;
 }
 
 export interface Seat {

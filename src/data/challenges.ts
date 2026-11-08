@@ -50,6 +50,11 @@ export const CHALLENGES: ChallengeDef[] = [
   { id: 'buy5', text: 'Buy 5 new things', icon: 'bag', reward: 80, target: 5, stat: 'buy' },
   { id: 'feed10', text: 'Feed friends 10 snacks', icon: 'cake', reward: 50, target: 10, stat: 'feed' },
   { id: 'allSongs', text: 'Perform every song', icon: 'star', reward: 150, target: 6, check: (s) => s.songsDone.length },
+  { id: 'manicure1', text: 'Get a manicure at the Salon', icon: 'makeup', reward: 30, target: 1, stat: 'manicure' },
+  { id: 'basket5', text: 'Score 5 baskets at the Playground', icon: 'toy', reward: 40, target: 5, stat: 'basket' },
+  { id: 'goal5', text: 'Kick 5 soccer goals', icon: 'star', reward: 40, target: 5, stat: 'goal' },
+  { id: 'basket30', text: 'Score 30 baskets', icon: 'toy', reward: 90, target: 30, stat: 'basket' },
+  { id: 'goal20', text: 'Kick 20 soccer goals', icon: 'star', reward: 90, target: 20, stat: 'goal' },
 ];
 
 export const SEASON_CHALLENGES: ChallengeDef[] = [
@@ -68,6 +73,9 @@ const REPEATS: { stat: string; text: (n: number) => string; icon: string; step: 
   { stat: 'slide', text: (n) => `Go down the slide ${n} times`, icon: 'slide', step: 5, reward: 30 },
   { stat: 'makeover', text: (n) => `Give ${n} makeovers`, icon: 'scissors', step: 3, reward: 35 },
   { stat: 'placeFurniture', text: (n) => `Decorate with ${n} things`, icon: 'home', step: 8, reward: 35 },
+  { stat: 'basket', text: (n) => `Score ${n} baskets`, icon: 'toy', step: 10, reward: 35 },
+  { stat: 'goal', text: (n) => `Kick ${n} soccer goals`, icon: 'star', step: 8, reward: 35 },
+  { stat: 'manicure', text: (n) => `Give ${n} manicures`, icon: 'makeup', step: 3, reward: 35 },
 ];
 
 /** Builds the nth endless challenge. */
