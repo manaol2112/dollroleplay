@@ -120,34 +120,56 @@ export function nailArt(n: Nails, i: number, w: number, top: number, h: number, 
   return s;
 }
 
-// The hand: fingers fanning up from the palm (back of the hand, so we see the nails).
+// The hand, seen from the back so the nails face us. Fingers sit side by side along the top of the
+// palm and fan out a little; the thumb comes off the left side. Thumb is nail 0.
 const FINGERS: { x: number; y: number; len: number; w: number; a: number }[] = [
-  { x: 168, y: 520, len: 150, w: 66, a: -52 },
-  { x: 222, y: 400, len: 205, w: 62, a: -13 },
-  { x: 292, y: 378, len: 228, w: 64, a: -2 },
-  { x: 362, y: 392, len: 210, w: 61, a: 9 },
-  { x: 428, y: 432, len: 168, w: 54, a: 21 },
+  { x: 232, y: 522, len: 156, w: 62, a: -50 }, // thumb (its base hides under the palm)
+  { x: 226, y: 372, len: 178, w: 55, a: -9 }, // index
+  { x: 283, y: 360, len: 204, w: 57, a: -2 }, // middle
+  { x: 339, y: 368, len: 186, w: 54, a: 5 }, // ring
+  { x: 390, y: 388, len: 144, w: 47, a: 13 }, // pinky
 ];
 
+/** A finger pointing up from (0,0): slightly tapered, with a round tip. */
+const fingerD = (w: number, len: number) => {
+  const tw = w * 0.46;
+  return `M${f(-w / 2)} 40 L${f(-w / 2)} 0 C${f(-w / 2)} ${f(-len * 0.5)} ${f(-tw)} ${f(-len + tw * 1.2)} ${f(-tw)} ${f(-len + tw)} A${f(tw)} ${f(tw)} 0 0 1 ${f(tw)} ${f(-len + tw)} C${f(tw)} ${f(-len + tw * 1.2)} ${f(w / 2)} ${f(-len * 0.5)} ${f(w / 2)} 0 L${f(w / 2)} 40Z`;
+};
+
 export function handSvg(skin: string, n: Nails, wet: boolean, pick?: number): string {
-  const sd = dark(skin, 0.14);
-  let fingers = '';
-  let thumb = '';
-  FINGERS.forEach((fg, i) => {
+  const sd = dark(skin, 0.16);
+  const hi = light(skin, 0.35);
+  const finger = (i: number) => {
+    const fg = FINGERS[i];
+    const d = fingerD(fg.w, fg.len);
+    const tw = fg.w * 0.46;
     let g = `<g transform="translate(${fg.x} ${fg.y}) rotate(${fg.a})" data-nail="${i}" class="finger${pick === i ? ' pick' : ''}">`;
-    g += `<rect x="${f(-fg.w / 2)}" y="${f(-fg.len)}" width="${fg.w}" height="${f(fg.len + 40)}" rx="${f(fg.w / 2)}" fill="${skin}"/>`;
-    g += `<rect x="${f(-fg.w / 2)}" y="${f(-fg.len)}" width="${fg.w}" height="${f(fg.len + 40)}" rx="${f(fg.w / 2)}" fill="url(#g-shadeX)"/>`;
-    g += `<path d="M${f(-fg.w * 0.22)} ${f(-fg.len * 0.42)} q${f(fg.w * 0.22)} ${f(-6)} ${f(fg.w * 0.44)} 0" stroke="${sd}" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.6"/>`;
-    const nw = fg.w * 0.7;
-    g += nailArt(n, i, nw, -fg.len + fg.w * 0.12, fg.len * 0.36, wet);
-    g += '</g>';
-    if (i === 0) thumb = g;
-    else fingers += g;
-  });
-  const palm = `<path d="M150 560 C130 450 180 385 300 380 C420 378 470 430 470 520 C470 610 430 700 400 760 L210 760 C185 700 160 640 150 560Z" fill="${skin}"/><path d="M150 560 C130 450 180 385 300 380 C420 378 470 430 470 520 C470 610 430 700 400 760 L210 760 C185 700 160 640 150 560Z" fill="url(#g-shadeX)"/>` +
-    [[225, 402], [292, 384], [360, 396], [424, 434]].map(([x, y]) => `<path d="M${x - 16} ${y + 22} q16 -8 32 0" stroke="${sd}" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.5"/>`).join('');
-  const sleeve = `<path d="M196 740 L414 740 L430 820 L180 820Z" fill="#ff9ec7"/><path d="M190 736 Q305 760 420 736 L424 756 Q305 780 186 756Z" fill="#ffffff"/>`;
-  return `<svg viewBox="40 120 560 700" preserveAspectRatio="xMidYMid meet">${fingers}${palm}${thumb}${sleeve}</svg>`;
+    g += `<path d="${d}" fill="${skin}" stroke="${sd}" stroke-width="2.5"/><path d="${d}" fill="url(#g-shadeX)"/>`;
+    g += `<path d="M${f(-fg.w * 0.3)} ${f(-fg.len * 0.5)} C${f(-fg.w * 0.3)} ${f(-fg.len * 0.75)} ${f(-tw * 0.6)} ${f(-fg.len * 0.85)} ${f(-tw * 0.55)} ${f(-fg.len * 0.9)}" stroke="${hi}" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.6"/>`;
+    // knuckle creases
+    for (const k of [0.36, 0.62]) g += `<path d="M${f(-fg.w * 0.2)} ${f(-fg.len * k)} q${f(fg.w * 0.2)} ${f(-4)} ${f(fg.w * 0.4)} 0" stroke="${sd}" stroke-width="2.2" fill="none" stroke-linecap="round" opacity="0.55"/>`;
+    const nw = fg.w * 0.66;
+    const nh = fg.len * (i === 0 ? 0.36 : 0.3);
+    g += nailArt(n, i, nw, -fg.len + tw * 0.32, nh, wet);
+    return g + '</g>';
+  };
+  const palmD = 'M190 378 C200 340 380 336 412 382 C428 400 432 452 424 500 C416 552 398 590 380 640 L222 640 C206 600 188 560 180 520 C172 470 176 410 190 378Z';
+  // Outline only the sides so the fingers flow into the palm without a seam.
+  const sides = 'M192 380 C176 410 172 470 180 520 C188 560 206 600 222 640 M410 384 C428 400 432 452 424 500 C416 552 398 590 380 640';
+  const palm = `<path d="${palmD}" fill="${skin}"/><path d="${palmD}" fill="url(#g-shadeX)"/><path d="${sides}" fill="none" stroke="${sd}" stroke-width="2.5" stroke-linecap="round"/>` +
+    `<path d="M218 420 C230 470 236 540 240 600" stroke="${hi}" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.4"/>` +
+    [[228, 392], [284, 382], [340, 388], [390, 404]].map(([x, y]) => `<ellipse cx="${x}" cy="${y + 20}" rx="13" ry="5" fill="${sd}" opacity="0.28"/>`).join('') +
+    `<path d="M300 470 q22 30 14 70" stroke="${sd}" stroke-width="2" fill="none" opacity="0.25"/>`;
+  const cushion = `<rect x="104" y="600" width="392" height="128" rx="60" fill="#ffc7dc"/><rect x="104" y="600" width="392" height="128" rx="60" fill="url(#g-shadeY)"/>` +
+    `<rect x="116" y="610" width="368" height="108" rx="52" fill="none" stroke="#ffffff" stroke-width="4" stroke-dasharray="9 7" opacity="0.85"/>` +
+    [170, 430].map((x) => `<circle cx="${x}" cy="664" r="7" fill="#ff9ec7"/><circle cx="${x - 2}" cy="662" r="2.5" fill="#fff" opacity="0.7"/>`).join('') +
+    `<path d="M130 624 Q300 596 470 624" stroke="#ffffff" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.5"/>`;
+  const sleeve = `<path d="M214 630 L388 630 L404 760 L198 760Z" fill="#ff9ec7"/><path d="M214 630 L388 630 L404 760 L198 760Z" fill="url(#g-shadeX)"/><path d="M208 622 Q301 646 394 622 L398 646 Q301 670 204 646Z" fill="#ffffff"/>` +
+    `<path d="M220 660 L380 660" stroke="#ffffff" stroke-width="3" stroke-dasharray="6 6" opacity="0.7"/>`;
+  // A soft fold where the thumb meets the hand.
+  const thumbJoin = `<path d="M196 470 C204 500 214 520 232 536" stroke="${sd}" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.7"/>`;
+  const shadow = `<ellipse cx="300" cy="650" rx="140" ry="20" fill="#7a2a55" opacity="0.12"/>`;
+  return `<svg viewBox="60 150 480 600" preserveAspectRatio="xMidYMid meet">${cushion}${shadow}${finger(0)}${finger(1)}${finger(2)}${finger(3)}${finger(4)}${palm}${thumbJoin}${sleeve}</svg>`;
 }
 
 function bottle(c: string): string {
@@ -178,7 +200,6 @@ export function openNails(dollId: string | undefined, onClose: () => void): void
   root.innerHTML = `
     <div class="closet-stage nail-stage">
       <div class="roster"></div>
-      <div class="nail-table"></div>
       <div class="hand-view"></div>
       <div class="stage-bar">
         <button class="chip ${'all-chip'}" data-act="all">${icon('hand')}<span>All nails</span></button>
@@ -357,5 +378,4 @@ export function openNails(dollId: string | undefined, onClose: () => void): void
     G.s.stats['hint-nails'] = 1;
     window.setTimeout(() => toast('Pick a polish, then tap a nail to paint it!', 'makeup'), 500);
   }
-  void light;
 }
