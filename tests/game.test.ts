@@ -234,13 +234,38 @@ describe('challenges', () => {
 });
 
 describe('school and music', () => {
-  it('every question has its answer among the choices', () => {
-    for (let level = 0; level < 6; level++) for (let i = 0; i < 400; i++) {
-      const q = makeQuestion(level);
-      expect(q.options).toContain(q.answer);
-      expect(new Set(q.options).size).toBe(q.options.length);
-      if (q.kind === 'sub') expect(Number(q.answer)).toBeGreaterThanOrEqual(0);
+  it('every question for every grade has its answer among the choices', () => {
+    for (let grade = 1; grade <= 5; grade++) {
+      const kinds = new Set<string>();
+      for (let i = 0; i < 600; i++) {
+        const q = makeQuestion(grade);
+        kinds.add(q.kind);
+        expect(q.options, `${grade} ${q.prompt}`).toContain(q.answer);
+        expect(new Set(q.options).size, `${grade} ${q.prompt} ${q.options}`).toBe(q.options.length);
+        expect(q.options.length).toBeGreaterThanOrEqual(2);
+        expect(q.prompt).not.toMatch(/NaN|undefined|Infinity/);
+        for (const o of q.options) expect(o).not.toMatch(/NaN|undefined|Infinity/);
+        if (/^\d+$/.test(q.answer)) expect(Number(q.answer)).toBeGreaterThanOrEqual(0);
+      }
+      expect(kinds.size, `grade ${grade} variety`).toBeGreaterThanOrEqual(6);
     }
+  });
+
+  it('harder grades ask harder questions', () => {
+    const avg = (g: number) => {
+      let sum = 0;
+      let n = 0;
+      for (let i = 0; i < 400; i++) {
+        const q = makeQuestion(g);
+        const v = Number(q.answer);
+        if (Number.isFinite(v)) {
+          sum += Math.abs(v);
+          n++;
+        }
+      }
+      return sum / n;
+    };
+    expect(avg(4)).toBeGreaterThan(avg(1) * 5);
   });
 
   it('every song fits on the keyboard', () => {

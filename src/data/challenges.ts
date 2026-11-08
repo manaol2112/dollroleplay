@@ -24,7 +24,7 @@ export const CHALLENGES: ChallengeDef[] = [
   { id: 'firstDress', text: 'Change an outfit in the closet', icon: 'hanger', reward: 20, target: 1, stat: 'equip' },
   { id: 'firstFurniture', text: 'Put 3 things in your house', icon: 'home', reward: 25, target: 3, stat: 'placeFurniture' },
   { id: 'firstSwing', text: 'Go on the swings at the playground', icon: 'swing', reward: 20, target: 1, stat: 'swing' },
-  { id: 'piano10', text: 'Play 10 notes on the piano', icon: 'note', reward: 25, target: 10, stat: 'pianoNote' },
+  { id: 'piano10', text: 'Play 10 notes at the Theater', icon: 'note', reward: 25, target: 10, stat: 'pianoNote' },
   { id: 'feed1', text: 'Give a friend a yummy snack', icon: 'cake', reward: 20, target: 1, stat: 'feed' },
   { id: 'makeover1', text: 'Get a makeover at the Salon', icon: 'scissors', reward: 30, target: 1, stat: 'makeover' },
   { id: 'newFriend', text: 'Make a new friend', icon: 'plus', reward: 30, target: 1, stat: 'createDoll' },
@@ -43,7 +43,7 @@ export const CHALLENGES: ChallengeDef[] = [
   { id: 'equip10', text: 'Try on 10 different things', icon: 'hanger', reward: 40, target: 10, stat: 'equip' },
   { id: 'glam', text: 'Wear lipstick and blush together', icon: 'lips', reward: 35, target: 1, check: (s) => (s.dolls.some((d) => d.look.lips && d.look.blush) ? 1 : 0) },
   { id: 'furniture10', text: 'Put 10 things in your house', icon: 'home', reward: 60, target: 10, stat: 'placeFurniture' },
-  { id: 'piano50', text: 'Play 50 piano notes', icon: 'note', reward: 50, target: 50, stat: 'pianoNote' },
+  { id: 'piano50', text: 'Play 50 music notes', icon: 'note', reward: 50, target: 50, stat: 'pianoNote' },
   { id: 'quiz20', text: 'Answer 20 School questions', icon: 'question', reward: 90, target: 20, stat: 'quizCorrect' },
   { id: 'song3', text: 'Perform 3 songs', icon: 'star', reward: 100, target: 3, stat: 'songComplete' },
   { id: 'friends4', text: 'Have 6 friends in your town', icon: 'plus', reward: 80, target: 6, check: (s) => s.dolls.length },
@@ -61,7 +61,7 @@ export const SEASON_CHALLENGES: ChallengeDef[] = [
 
 const REPEATS: { stat: string; text: (n: number) => string; icon: string; step: number; reward: number }[] = [
   { stat: 'quizCorrect', text: (n) => `Answer ${n} School questions`, icon: 'question', step: 10, reward: 40 },
-  { stat: 'pianoNote', text: (n) => `Play ${n} piano notes`, icon: 'note', step: 40, reward: 35 },
+  { stat: 'pianoNote', text: (n) => `Play ${n} music notes`, icon: 'note', step: 40, reward: 35 },
   { stat: 'songComplete', text: (n) => `Perform ${n} songs`, icon: 'star', step: 2, reward: 50 },
   { stat: 'equip', text: (n) => `Try on ${n} things`, icon: 'hanger', step: 15, reward: 35 },
   { stat: 'feed', text: (n) => `Feed friends ${n} snacks`, icon: 'cake', step: 5, reward: 30 },

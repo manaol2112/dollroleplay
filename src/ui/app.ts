@@ -304,7 +304,7 @@ export class App {
       html += b('lesson', 'question', 'Lesson') + b('draw', 'pencil', 'Draw', sc?.drawMode);
       if (sc?.drawMode) html += `<div class="chalks">${['#ffffff', '#ffb3d1', '#ffe680', '#a8e6ff', '#c3f5b0'].map((c) => `<button class="chalk${sc.chalkColor === c ? ' on' : ''}" data-chalk="${c}" style="background:${c}"></button>`).join('')}<button class="chalk eraser${sc.chalkColor === 'erase' ? ' on' : ''}" data-chalk="erase">${icon('eraser')}</button><button class="chalk" data-act="clearboard">${icon('trash')}</button></div>`;
     }
-    if (id === 'theater') html += b('piano', 'piano', 'Piano') + b('curtains', 'curtain', 'Curtains') + b('lights', 'bulb', 'Lights', sc?.lights);
+    if (id === 'theater') html += b('piano', 'note', 'Music') + b('curtains', 'curtain', 'Curtains') + b('lights', 'bulb', 'Lights', sc?.lights);
     if (id === 'salon') html += b('makeover', 'scissors', 'Makeover');
     if (id === 'boutique') html += b('shop', 'bag', 'Shop');
     box.innerHTML = html;

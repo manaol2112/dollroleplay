@@ -26,6 +26,8 @@ export interface GameState {
   seenIntro: boolean;
   /** Leo and Dad joined saves made before boys existed. */
   boysAdded: boolean;
+  /** School grade for lessons (1-5); unset until chosen. */
+  grade?: number;
 }
 
 export const START_COINS = 120;
