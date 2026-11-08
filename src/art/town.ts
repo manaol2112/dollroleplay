@@ -5,6 +5,10 @@ import { dark, light } from './color';
 import { renderDoll } from './doll';
 import { SEASON_LOOK, birds, cloud, seasonTree, uid } from './scenes';
 import { bowG, flowerG, heartD, sparkleD, starD } from './wear';
+import { LEISURE_FACADES } from './furn/leisure';
+import { SHOPS_FACADES } from './furn/shops';
+import { CARE_FACADES } from './furn/care';
+import { RIDES_FACADES } from './furn/rides';
 
 const f = (n: number) => n.toFixed(1);
 const R = (x: number, y: number, w: number, h: number, r: number, fill: string, extra = '') =>
@@ -18,7 +22,7 @@ const T = (x: number, y: number, s: string, size: number, fill: string, extra = 
   `<text x="${f(x)}" y="${f(y)}" font-family="Fredoka, sans-serif" font-weight="700" font-size="${size}" fill="${fill}" text-anchor="middle" ${extra}>${s}</text>`;
 const shade = (x: number, y: number, w: number, h: number, r = 0) => R(x, y, w, h, r, 'url(#g-shadeX)');
 
-export const TOWN_W = 4800;
+export const TOWN_W = 10500;
 /** The world is 960 units tall; the street's sidewalk is at y = 650. */
 export const TOWN_TOP = -30;
 export const TOWN_H = 960;
@@ -34,7 +38,25 @@ export const TOWN_SPOTS: TownSpot[] = [
   { id: 'salon', x: 3420, label: 'Salon', color: '#2fae8a', top: 420 },
   { id: 'boutique', x: 3880, label: 'Boutique', color: '#e0457b', top: 430 },
   { id: 'theater', x: 4430, label: 'Theater', color: '#7a4fe0', top: 540 },
+  // The second half of town: places you can also decorate.
+  { id: 'cinema', x: 5060, label: 'Cinema', color: '#e0245e', top: 520 },
+  { id: 'restaurant', x: 5640, label: 'Restaurant', color: '#e85d5d', top: 480 },
+  { id: 'mall', x: 6290, label: 'Mall', color: '#ff6f9f', top: 520 },
+  { id: 'grocery', x: 6960, label: 'Grocery', color: '#3fbf8f', top: 470 },
+  { id: 'hospital', x: 7560, label: 'Hospital', color: '#e8384f', top: 540 },
+  { id: 'hotel', x: 8180, label: 'Hotel', color: '#c98a1e', top: 590 },
+  { id: 'library', x: 8780, label: 'Library', color: '#7a4fe0', top: 500 },
+  { id: 'carshop', x: 9380, label: 'Car Shop', color: '#4f9dff', top: 470 },
+  { id: 'themepark', x: 10040, label: 'Theme Park', color: '#ff7eb6', top: 560 },
 ];
+/** Building fronts drawn by the place catalogs (with their height for the name tag). */
+const EXTRA_FACADES: Record<string, { h: number; art: (s: Season) => string }> = { ...LEISURE_FACADES, ...SHOPS_FACADES, ...CARE_FACADES, ...RIDES_FACADES };
+// Name tags sit just above each front, but never so high that they leave the top of the screen.
+for (const sp of TOWN_SPOTS) if (EXTRA_FACADES[sp.id]) sp.top = Math.min(EXTRA_FACADES[sp.id].h + 30, 555);
+const placeholder = (s: Season) => {
+  void s;
+  return `<rect x="-180" y="-380" width="360" height="380" rx="14" fill="#ffe6f1"/><rect x="-60" y="-140" width="120" height="140" rx="20" fill="#ff9ec7"/>`;
+};
 const SQUARE_X = 2950;
 
 // ---------------- little pieces ----------------
@@ -271,7 +293,7 @@ export function townLayers(s: Season, friends: Record<string, Look[]>, gift: boo
   })();
 
   // far mountains
-  const farW = 4200;
+  const farW = TOWN_LAYER.far.w;
   const mount = s === 'winter' ? '#dfe8f6' : s === 'fall' ? '#e8c9a8' : '#c9d9f0';
   let far = '';
   for (let x = -200; x < farW; x += 520) {
@@ -281,11 +303,11 @@ export function townLayers(s: Season, friends: Record<string, Look[]>, gift: boo
   far += R(-200, 500, farW + 400, 600, 0, light(L0.hill1, 0.25));
 
   // middle hills, trees, a windmill and a balloon
-  const midW = 5600;
-  let mid = P(`M-200 540 ${Array.from({ length: 16 }, (_, i) => `Q${-200 + (i + 0.5) * 380} ${440 + (i % 2) * 40} ${-200 + (i + 1) * 380} 540`).join(' ')} L${midW} 1100 L-200 1100Z`, L0.hill1);
-  mid += P(`M-200 580 ${Array.from({ length: 14 }, (_, i) => `Q${-200 + (i + 0.5) * 440} ${500 + ((i + 1) % 2) * 50} ${-200 + (i + 1) * 440} 580`).join(' ')} L${midW} 1100 L-200 1100Z`, L0.hill2);
-  for (let i = 0; i < 26; i++) mid += seasonTree(60 + i * 215 + ((i * 53) % 90), 560 + ((i * 37) % 30), 0.42 + ((i * 13) % 10) / 60, s, i);
-  for (const wx of [900, 3300]) {
+  const midW = TOWN_LAYER.mid.w;
+  let mid = P(`M-200 540 ${Array.from({ length: Math.ceil(midW / 380) + 1 }, (_, i) => `Q${-200 + (i + 0.5) * 380} ${440 + (i % 2) * 40} ${-200 + (i + 1) * 380} 540`).join(' ')} L${midW} 1100 L-200 1100Z`, L0.hill1);
+  mid += P(`M-200 580 ${Array.from({ length: Math.ceil(midW / 440) + 1 }, (_, i) => `Q${-200 + (i + 0.5) * 440} ${500 + ((i + 1) % 2) * 50} ${-200 + (i + 1) * 440} 580`).join(' ')} L${midW} 1100 L-200 1100Z`, L0.hill2);
+  for (let i = 0; i < Math.ceil(midW / 215); i++) mid += seasonTree(60 + i * 215 + ((i * 53) % 90), 560 + ((i * 37) % 30), 0.42 + ((i * 13) % 10) / 60, s, i);
+  for (const wx of [900, 3300, 5200, 7400]) {
     mid += P(`M${wx - 24} 520 L${wx - 12} 380 L${wx + 12} 380 L${wx + 24} 520Z`, '#fff3e6') + P(`M${wx - 18} 380 L${wx} 352 L${wx + 18} 380Z`, '#e85d5d');
     mid += `<g><animateTransform attributeName="transform" type="rotate" values="0 ${wx} 384;360 ${wx} 384" dur="9s" repeatCount="indefinite"/>${[0, 90, 180, 270].map((a) => `<path d="M${wx} 384 L${wx - 8} ${384 - 90} L${wx + 8} ${384 - 90}Z" fill="#ffffff" transform="rotate(${a} ${wx} 384)"/>`).join('')}</g>` + C(wx, 384, 6, '#c98a5a');
   }
@@ -294,8 +316,8 @@ export function townLayers(s: Season, friends: Record<string, Look[]>, gift: boo
   // main street
   const grassId = uid('tg');
   let main = `<defs><linearGradient id="${grassId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${L0.grassDark}"/><stop offset="0.4" stop-color="${L0.grass}"/><stop offset="1" stop-color="${light(L0.grass, 0.12)}"/></linearGradient></defs>`;
-  main += P(`M-200 600 ${Array.from({ length: 14 }, (_, i) => `Q${-200 + (i + 0.5) * 380} ${574 + (i % 2) * 16} ${-200 + (i + 1) * 380} 600`).join(' ')} L${TOWN_W + 200} 1100 L-200 1100Z`, `url(#${grassId})`);
-  for (let i = 0; i < 120; i++) {
+  main += P(`M-200 600 ${Array.from({ length: Math.ceil(TOWN_W / 380) + 2 }, (_, i) => `Q${-200 + (i + 0.5) * 380} ${574 + (i % 2) * 16} ${-200 + (i + 1) * 380} 600`).join(' ')} L${TOWN_W + 200} 1100 L-200 1100Z`, `url(#${grassId})`);
+  for (let i = 0; i < 260; i++) {
     const x = (i * 211) % TOWN_W;
     const y = 610 + ((i * 97) % 34);
     if (s === 'winter') main += E(x, y, 20, 5, '#ffffff', 'opacity="0.8"');
@@ -308,16 +330,16 @@ export function townLayers(s: Season, friends: Record<string, Look[]>, gift: boo
   for (let x = -200; x < TOWN_W + 200; x += 70) main += R(x, BASE - 6, 2, ROAD_Y - BASE + 6, 0, dark(walk, 0.08));
   main += R(-200, ROAD_Y - 6, TOWN_W + 400, 8, 0, '#ffffff') + R(-200, ROAD_Y, TOWN_W + 400, ROAD_H, 0, s === 'winter' ? '#c6ccdc' : '#b6bccf') + R(-200, ROAD_Y, TOWN_W + 400, ROAD_H, 0, 'url(#g-shadeY)', 'opacity="0.5"');
   for (let x = -160; x < TOWN_W + 200; x += 120) main += R(x, ROAD_Y + ROAD_H / 2 - 3, 60, 6, 3, '#ffffff', 'opacity="0.9"');
-  for (const cx of [2300, SQUARE_X]) for (let i = 0; i < 6; i++) main += R(cx - 110 + i * 40, ROAD_Y + 10, 24, ROAD_H - 20, 4, '#ffffff', 'opacity="0.85"');
+  for (const cx of [2300, SQUARE_X, 6290, 8180]) for (let i = 0; i < 6; i++) main += R(cx - 110 + i * 40, ROAD_Y + 10, 24, ROAD_H - 20, 4, '#ffffff', 'opacity="0.85"');
   main += R(-200, ROAD_Y + ROAD_H, TOWN_W + 400, 10, 0, '#ffffff');
-  for (let i = 0; i < 160; i++) {
+  for (let i = 0; i < 340; i++) {
     const x = (i * 157) % TOWN_W;
     const y = ROAD_Y + ROAD_H + 22 + ((i * 61) % 70);
     if (s === 'winter') main += E(x, y, 26, 6, '#ffffff', 'opacity="0.85"');
     else if (s === 'fall') main += E(x, y, 7, 4, L0.leaves[i % 4], `transform="rotate(${(i * 53) % 180} ${x} ${y})"`);
     else main += P(`M${x} ${y} l-5 -14 M${x} ${y} l5 -16 M${x} ${y} l0 -12`, 'none', `stroke="${L0.grassDark}" stroke-width="3.5" stroke-linecap="round" opacity="0.7"`);
   }
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 30; i++) {
     const x = 160 + i * 340 + ((i * 71) % 120);
     const y = ROAD_Y + ROAD_H + 64 + ((i * 29) % 26);
     if (s === 'winter') main += i % 3 === 0 ? `<g transform="translate(${x} ${y}) scale(0.3)">${C(0, -60, 62, '#fff')}${C(0, -160, 46, '#fff')}${C(-12, -168, 5, '#2d2a3a')}${C(12, -168, 5, '#2d2a3a')}${P('M0 -158 L30 -152 L0 -148Z', '#ff8a3d')}${R(-44, -130, 88, 16, 8, ['#e8384f', '#4f9dff', '#9b6bff'][i % 3])}</g>` : E(x, y, 60, 14, '#ffffff');
@@ -328,8 +350,8 @@ export function townLayers(s: Season, friends: Record<string, Look[]>, gift: boo
   if (s === 'winter') for (let x = -200; x < TOWN_W; x += 260) main += E(x + 80, ROAD_Y - 4, 60, 8, '#ffffff');
 
   // trees and lamps between places
-  for (const x of [80, 760, 1180, 1960, 2700, 3200, 3650, 4100, 4760]) main += seasonTree(x, BASE - 4, 0.75, s, Math.round(x / 7));
-  for (const x of [700, 1900, 2650, 3640, 4120]) main += lamp(x, BASE + 30);
+  for (const x of [80, 760, 1180, 1960, 2700, 3200, 3650, 4100, 4760, 5340, 5960, 6620, 7260, 7870, 8480, 9080, 9700, 10400]) main += seasonTree(x, BASE - 4, 0.75, s, Math.round(x / 7));
+  for (const x of [700, 1900, 2650, 3640, 4120, 5350, 6620, 7870, 9080]) main += lamp(x, BASE + 30);
 
   const spots: Record<string, (s: Season) => string> = { home, playground, school, salon, boutique, theater };
   main += `<g transform="translate(960 ${BASE})">${neighbor(s)}</g>`;
@@ -338,7 +360,8 @@ export function townLayers(s: Season, friends: Record<string, Look[]>, gift: boo
   for (const sp of TOWN_SPOTS) {
     const label = `<g class="map-label"><g><animateTransform attributeName="transform" type="translate" values="0 0;0 -8;0 0" dur="2.6s" begin="${-sp.x / 900}s" repeatCount="indefinite"/>` +
       `${R(-(sp.label.length * 17 + 46) / 2, -sp.top - 70, sp.label.length * 17 + 46, 54, 27, '#ffffff', `stroke="${sp.color}" stroke-width="5"`)}${T(0, -sp.top - 31, sp.label, 32, sp.color)}<path d="M-10 ${-sp.top - 18} L10 ${-sp.top - 18} L0 ${-sp.top - 4}Z" fill="${sp.color}"/></g></g>`;
-    main += `<g class="map-spot" data-place="${sp.id}" transform="translate(${sp.x} ${BASE})"><g class="map-bounce">${spots[sp.id](s)}</g>${label}</g>`;
+    const art = spots[sp.id] ? spots[sp.id](s) : (EXTRA_FACADES[sp.id]?.art ?? placeholder)(s);
+    main += `<g class="map-spot" data-place="${sp.id}" transform="translate(${sp.x} ${BASE})"><g class="map-bounce">${art}</g>${label}</g>`;
   }
   // friends standing outside wherever they are
   for (const sp of TOWN_SPOTS) {
@@ -351,7 +374,7 @@ export function townLayers(s: Season, friends: Record<string, Look[]>, gift: boo
   main += traffic();
 
   // front bushes, flowers and fence (pointer-transparent)
-  const frontW = 6600;
+  const frontW = TOWN_LAYER.front.w;
   const bc = s === 'winter' ? '#e8f0fa' : s === 'fall' ? '#d98a3d' : '#4fb46c';
   let front = '';
   for (let x = -200; x < frontW; x += 300) {
@@ -362,4 +385,10 @@ export function townLayers(s: Season, friends: Record<string, Look[]>, gift: boo
   return { sky, far, mid, main, front };
 }
 
-export const TOWN_LAYER = { far: { k: 0.25, w: 4200 }, mid: { k: 0.55, w: 5600 }, main: { k: 1, w: TOWN_W }, front: { k: 1.15, w: 6600 } };
+// Each layer is just wide enough to cover the screen at the far end of town.
+export const TOWN_LAYER = {
+  far: { k: 0.25, w: Math.round(TOWN_W * 0.25 + 2400) },
+  mid: { k: 0.55, w: Math.round(TOWN_W * 0.55 + 2400) },
+  main: { k: 1, w: TOWN_W },
+  front: { k: 1.15, w: Math.round(TOWN_W * 1.15 + 2400) },
+};

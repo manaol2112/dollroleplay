@@ -16,14 +16,21 @@ export type Mount = 'floor' | 'wall' | 'rug' | 'prop';
 export type FurnCat =
   | 'bedroom' | 'kids' | 'living' | 'electronics' | 'lighting' | 'kitchen' | 'bath'
   | 'decor' | 'plants' | 'wall' | 'rugs' | 'yard'
+  | 'library' | 'cinema' | 'hotel' | 'grocery' | 'restaurant' | 'mall' | 'hospital' | 'cars' | 'rides'
   | 'toys' | 'food' | 'outdoor' | 'school' | 'stage' | 'salon' | 'shop';
 
 export interface SeatDef {
   x: number;
   y: number;
   pose: 'sit' | 'sleep' | 'slide';
-  /** Motion shared by the seat and whoever sits in it: rocking around a pivot, or bouncing up and down. */
-  anim?: { pivot: [number, number]; amp: number; dur: number; phase?: number; kind?: 'rotate' | 'bounce' };
+  /**
+   * Motion shared by the seat and whoever sits in it:
+   * - 'rotate' (default): rock back and forth by amp degrees around pivot (swings, rocking chairs)
+   * - 'bounce': move up amp units and back (trampolines, carousel horses)
+   * - 'sway': slide left/right by amp units (bumper cars)
+   * - 'wheel': go all the way round pivot while staying upright (ferris wheels, teacups); negative amp = backwards
+   */
+  anim?: { pivot: [number, number]; amp: number; dur: number; phase?: number; kind?: 'rotate' | 'bounce' | 'sway' | 'wheel' };
   /** For slides: where the rider travels, relative to the item. */
   path?: [number, number][];
 }

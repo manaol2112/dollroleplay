@@ -6,7 +6,7 @@ import { WEAR_BY_ID } from '../art/wear';
 import { SEASONS, type Doll, type SceneState, type Season } from '../types';
 import { CHALLENGES, SEASON_CHALLENGES, challengeById, repeatChallenge, type ChallengeDef } from './challenges';
 import { starterLooks } from './looks';
-import { PLACES } from './places';
+import { PLACES, designable, indoorStyle } from './places';
 
 export interface GameState {
   v: 1;
@@ -28,6 +28,8 @@ export interface GameState {
   boysAdded: boolean;
   /** School grade for lessons (1-5); unset until chosen. */
   grade?: number;
+  /** Books read and movies watched, as 'book:<id>' / 'movie:<id>'. */
+  storiesDone?: string[];
 }
 
 export const START_COINS = 120;
@@ -46,8 +48,8 @@ export function freshScene(s: GameState, placeId: string): SceneState {
   const p = PLACES[placeId];
   return {
     items: p.initial.map((it) => ({ uid: s.nextUid++, def: it.def, x: it.x, y: it.y, flip: it.flip, on: it.on })),
-    wall: p.room ? p.wall : undefined,
-    floor: p.room || p.yard ? p.floor : undefined,
+    wall: indoorStyle(p) ? p.wall : undefined,
+    floor: designable(p) ? p.floor : undefined,
     chalk: placeId === 'school' ? [] : undefined,
   };
 }
@@ -112,6 +114,7 @@ export function parseState(json: string | null): GameState | null {
   }
   for (const k of ['visited', 'seasonsSeen', 'songsDone'] as const) if (!Array.isArray(s[k])) (s as unknown as Record<string, unknown>)[k] = [];
   if (!s.stats || typeof s.stats !== 'object') s.stats = {};
+  if (s.storiesDone && !Array.isArray(s.storiesDone)) s.storiesDone = [];
   const maxUid = Math.max(0, ...Object.values(s.scenes).flatMap((sc) => sc.items.map((i) => i.uid)));
   s.nextUid = Math.max(s.nextUid || 1, maxUid + 1);
   s.ch.list = (s.ch.list ?? []).filter((id) => challengeById(id));

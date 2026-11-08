@@ -1,6 +1,7 @@
 // Every place in town: its background, where the floor is, what's there to start with, and which
 // furniture the tray offers.
 import type { FurnCat } from '../art/furniture';
+import { TOWN_PLACE_LOOK, themeParkArt, townInteriorArt } from '../art/townplaces';
 import { FLOOR_BY_ID, WALL_BY_ID, type HomeRoom, backyardArt, boutiqueArt, playgroundArt, roomArt, salonArt, schoolArt, theaterArt } from '../art/scenes';
 import type { SceneState, Season } from '../types';
 
@@ -14,6 +15,8 @@ export interface PlaceDef {
   room?: HomeRoom;
   /** The backyard: an outdoor home room with a restyleable ground and fence. */
   yard?: boolean;
+  /** A town place the player can restyle and furnish like the house. */
+  decor?: 'indoor' | 'outdoor';
   wall?: string;
   floor?: string;
   outdoor?: boolean;
@@ -121,5 +124,62 @@ export const PLACES: Record<string, PlaceDef> = {
   },
 };
 
+type Start = { def: string; x: number; y: number; flip?: boolean; on?: boolean };
+const townPlace = (id: string, name: string, cat: FurnCat, initial: Start[]): PlaceDef => ({
+  id, name, building: id, floorTop: 600, floorBottom: 890, decor: 'indoor', wall: TOWN_PLACE_LOOK[id].wall, floor: TOWN_PLACE_LOOK[id].floor,
+  tray: [cat, ...HOME_TRAY], initial, bg: (s, sc) => townInteriorArt(id, s, sc),
+});
+
+const TOWN_PLACES: Record<string, PlaceDef> = {
+  library: townPlace('library', 'Library', 'library', [
+    { def: 'f-storyrug-sweet', x: 800, y: 830 }, { def: 'f-bookshelf-tall-sweet', x: 140, y: 700 }, { def: 'f-bookshelf-tall-sweet', x: 360, y: 700 },
+    { def: 'f-librarydesk-sweet', x: 1050, y: 720 }, { def: 'f-readingnook-sweet', x: 650, y: 760 }, { def: 'f-bookcart-sweet', x: 1420, y: 760 }, { def: 'plant', x: 1530, y: 700 },
+  ]),
+  cinema: townPlace('cinema', 'Cinema', 'cinema', [
+    { def: 'f-moviescreen-sweet', x: 800, y: 260 }, { def: 'f-cinemaseats-sweet', x: 560, y: 780 }, { def: 'f-cinemaseats-sweet', x: 1040, y: 780 },
+    { def: 'f-popcorn-sweet', x: 150, y: 700 }, { def: 'f-snackbar-sweet', x: 1240, y: 720 }, { def: 'f-ticketbooth-sweet', x: 1510, y: 760, on: false },
+  ]),
+  hotel: townPlace('hotel', 'Grand Hotel', 'hotel', [
+    { def: 'f-chandelier-hotel-sweet', x: 800, y: 120 }, { def: 'f-reception-sweet', x: 760, y: 710 }, { def: 'f-luggagecart-sweet', x: 1060, y: 820 },
+    { def: 'f-lobbysofa-sweet', x: 330, y: 790 }, { def: 'f-hotelbed-sweet', x: 1400, y: 730 }, { def: 'f-roomservice-sweet', x: 620, y: 875 }, { def: 'plant', x: 70, y: 700 },
+  ]),
+  grocery: townPlace('grocery', 'Grocery Shop', 'grocery', [
+    { def: 'f-grocshelf-sweet', x: 160, y: 690 }, { def: 'f-produce-sweet', x: 470, y: 720 }, { def: 'f-bakerycase-sweet', x: 780, y: 710 },
+    { def: 'f-freezer-sweet', x: 1060, y: 690 }, { def: 'f-checkout-sweet', x: 1380, y: 800 }, { def: 'f-cart-sweet', x: 620, y: 860 },
+  ]),
+  restaurant: townPlace('restaurant', 'Restaurant', 'restaurant', [
+    { def: 'f-menuboard-sweet', x: 800, y: 300 }, { def: 'f-chefgrill-sweet', x: 800, y: 680 }, { def: 'f-hoststand-sweet', x: 120, y: 760 },
+    { def: 'f-diningset-sweet', x: 420, y: 820 }, { def: 'f-booth-sweet', x: 1200, y: 800 }, { def: 'f-dessertcase-sweet', x: 1520, y: 700 },
+  ]),
+  mall: townPlace('mall', 'Sunshine Mall', 'mall', [
+    { def: 'f-storefront-toys-sweet', x: 260, y: 440 }, { def: 'f-escalator-sweet', x: 1320, y: 690 }, { def: 'f-mallfountain-sweet', x: 760, y: 790, on: true },
+    { def: 'f-kiosk-sweet', x: 330, y: 840 }, { def: 'f-clawmachine-sweet', x: 1040, y: 700 }, { def: 'f-mallbench-sweet', x: 1000, y: 880 },
+  ]),
+  hospital: townPlace('hospital', 'Happy Hospital', 'hospital', [
+    { def: 'f-eyechart-sweet', x: 1000, y: 300 }, { def: 'f-hospdesk-sweet', x: 220, y: 720 }, { def: 'f-hospitalbed-sweet', x: 700, y: 740 },
+    { def: 'f-examtable-sweet', x: 1060, y: 750 }, { def: 'f-medcabinet-sweet', x: 1480, y: 690 }, { def: 'f-wheelchair-sweet', x: 470, y: 885 }, { def: 'f-waitingchairs-sweet', x: 1340, y: 880 },
+  ]),
+  carshop: townPlace('carshop', 'Car Shop', 'cars', [
+    { def: 'f-toolwall-sweet', x: 800, y: 260 }, { def: 'f-turntable-sweet', x: 760, y: 830 }, { def: 'f-car-convertible-sweet', x: 760, y: 820 },
+    { def: 'f-tirerack-sweet', x: 160, y: 700 }, { def: 'f-carlift-sweet', x: 1350, y: 720 }, { def: 'f-gaspump-sweet', x: 1560, y: 760 },
+  ]),
+  themepark: {
+    id: 'themepark', name: 'Theme Park', building: 'themepark', floorTop: 600, floorBottom: 890, decor: 'outdoor', outdoor: true, floor: 'floor-stone-1',
+    tray: ['rides', 'outdoor', ...HOME_TRAY], bg: (s, sc) => themeParkArt(s, sc),
+    initial: [
+      { def: 'f-ferriswheel-sweet', x: 300, y: 690 }, { def: 'f-coaster-sweet', x: 1240, y: 700 }, { def: 'f-carousel-sweet', x: 760, y: 760 },
+      { def: 'f-teacups-sweet', x: 300, y: 870 }, { def: 'f-cottoncandy-sweet', x: 1500, y: 840 }, { def: 'f-balloonstand-sweet', x: 1050, y: 870 },
+    ],
+  },
+};
+
 export const HOME_ROOMS = ['bedroom', 'living', 'kitchen', 'bathroom', 'playroom', 'backyard'];
-export const BUILDING_FIRST_PLACE: Record<string, string> = { home: 'bedroom', school: 'school', playground: 'playground', theater: 'theater', salon: 'salon', boutique: 'boutique' };
+Object.assign(PLACES, TOWN_PLACES);
+export const TOWN_PLACE_IDS = Object.keys(TOWN_PLACES);
+export const BUILDING_FIRST_PLACE: Record<string, string> = {
+  home: 'bedroom', school: 'school', playground: 'playground', theater: 'theater', salon: 'salon', boutique: 'boutique',
+  ...Object.fromEntries(TOWN_PLACE_IDS.map((id) => [id, id])),
+};
+/** Places the player can restyle and furnish. */
+export const designable = (p: PlaceDef) => !!(p.room || p.yard || p.decor);
+export const indoorStyle = (p: PlaceDef) => !!(p.room || p.decor === 'indoor');

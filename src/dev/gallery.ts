@@ -10,7 +10,7 @@ import type { Look } from '../types';
 installDefs();
 const g = document.getElementById('g')!;
 const q = new URLSearchParams(location.search).get('s') ?? 'dolls';
-const cell = (svg: string, label: string, w = 180, h = 260, vb = '-130 -420 260 440') =>
+export const cell = (svg: string, label: string, w = 180, h = 260, vb = '-130 -420 260 440') =>
   `<div class="cell"><svg width="${w}" height="${h}" viewBox="${vb}">${svg}</svg>${label}</div>`;
 let html = '';
 if (q === 'dolls') {
@@ -68,4 +68,24 @@ if (q === 'furniture') {
   };
   if (!filtered) h += seatDemo('sofa', 0) + seatDemo('bed', 1) + seatDemo('schoolDesk', 2) + seatDemo('swings', 0) + seatDemo('salonChair', 3) + seatDemo('dryer', 1) + seatDemo('grandPiano', 0) + seatDemo('canopyBed', 3);
   g.innerHTML = h;
+}
+import { LEISURE_FACADES } from '../art/furn/leisure';
+import { SHOPS_FACADES } from '../art/furn/shops';
+import { CARE_FACADES } from '../art/furn/care';
+import { RIDES_FACADES } from '../art/furn/rides';
+import { STORIES } from '../data/stories';
+import { storyCover, storyScene } from '../art/storyart';
+if (q === 'facades') {
+  const all = { ...LEISURE_FACADES, ...SHOPS_FACADES, ...CARE_FACADES, ...RIDES_FACADES };
+  const season = (new URLSearchParams(location.search).get('season') ?? 'spring') as 'spring';
+  g.innerHTML = Object.entries(all).map(([id, fa]) => `<div class="cell"><svg width="320" height="320" viewBox="-300 ${-fa.h - 60} 600 ${fa.h + 100}" style="background:#cfe8ff"><rect x="-300" y="0" width="600" height="60" fill="#8fdc7a"/>${fa.art(season)}<line x1="-300" x2="300" y1="${-fa.h}" y2="${-fa.h}" stroke="red" stroke-dasharray="6 6"/></svg>${id} h=${fa.h}</div>`).join('');
+}
+if (q === 'stories') {
+  const qs = new URLSearchParams(location.search);
+  const id = qs.get('id');
+  if (!id) g.innerHTML = STORIES.map((st) => `<div class="cell" style="width:200px"><div style="width:180px;height:240px;margin:auto">${storyCover(st)}</div><b>${st.title}</b><br><small>${st.id} · ${st.kind} · ${st.pages.length}p</small></div>`).join('');
+  else {
+    const st = STORIES.find((x) => x.id === id)!;
+    g.innerHTML = st.pages.map((p, i) => `<div class="cell" style="width:420px"><svg width="400" height="240" viewBox="0 0 1000 600">${storyScene(p, { animate: qs.get('anim') === '1' })}</svg><small>${i + 1}. ${p.text}</small></div>`).join('') + `<div class="cell" style="width:420px;padding:10px"><b>Moral:</b> ${st.moral}</div>`;
+  }
 }

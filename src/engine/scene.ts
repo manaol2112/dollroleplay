@@ -271,6 +271,7 @@ export class SceneView {
     let x = d.x;
     let y = d.y;
     let wrapOpen = '<g>';
+    let wrapClose = '';
     let extra = '';
     const seatInfo = this.seatOf(d);
     if (seatInfo && !dragging) {
@@ -285,7 +286,17 @@ export class SceneView {
         const sg = it.flip ? -1 : 1;
         const spline = 'calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"';
         const begin = `begin="${-(s.anim.phase ?? 0)}s"`;
-        if (s.anim.kind === 'bounce') {
+        if (s.anim.kind === 'wheel') {
+          // Ferris wheels and teacups: circle the pivot while staying upright.
+          const px = sg * (s.anim.pivot[0] - s.x) * k(it);
+          const py = (s.anim.pivot[1] - s.y) * k(it);
+          const dir = (s.anim.amp >= 0 ? 1 : -1) * sg;
+          wrapOpen = `<g><animateTransform attributeName="transform" type="rotate" values="0 ${px} ${py};${360 * dir} ${px} ${py}" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite"/><g><animateTransform attributeName="transform" type="rotate" values="0 0 0;${-360 * dir} 0 0" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite"/>`;
+          wrapClose = '</g>';
+        } else if (s.anim.kind === 'sway') {
+          const a = (s.anim.amp * k(it)).toFixed(1);
+          wrapOpen = `<g><animateTransform attributeName="transform" type="translate" values="${-a} 0;${a} 0;${-a} 0" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite" ${spline}/>`;
+        } else if (s.anim.kind === 'bounce') {
           const up = (s.anim.amp * k(it)).toFixed(1);
           wrapOpen = `<g><animateTransform attributeName="transform" type="translate" values="0 0;0 ${-up};0 0" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite" ${spline}/>`;
         } else {
@@ -299,7 +310,7 @@ export class SceneView {
     }
     const expr = this.expr.get(d.id) ?? (pose === 'sleep' ? 'sleep' : dragging ? 'surprised' : 'normal');
     const sh = pose === 'stand' || pose === 'held' ? shadow(dragging ? 70 : 96, dragging ? 16 : 22) : '';
-    el.innerHTML = `${sh}<g class="bob">${wrapOpen}<g class="art${dragging ? ' wiggle' : ''}">${renderDoll(d.look, { pose, expr })}</g></g>${extra}</g>`;
+    el.innerHTML = `${sh}<g class="bob">${wrapOpen}<g class="art${dragging ? ' wiggle' : ''}">${renderDoll(d.look, { pose, expr })}</g>${wrapClose}</g>${extra}</g>`;
     el.classList.toggle('sitting', pose === 'sit');
     el.classList.toggle('sleeping', pose === 'sleep');
     el.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
@@ -455,7 +466,7 @@ export class SceneView {
   }
 
   private placed(it: PlacedItem): void {
-    if (this.place.room && FURN_BY_ID[it.def].mount !== 'prop') G.bump('placeFurniture');
+    if ((this.place.room || this.place.yard || this.place.decor) && FURN_BY_ID[it.def].mount !== 'prop') G.bump('placeFurniture');
     else G.changed();
   }
 
@@ -725,6 +736,7 @@ export class SceneView {
       this.sort();
       sound.pop();
       const id = b.it.def;
+      if (FURN_BY_ID[b.it.def]?.cat === 'rides') G.bump('ride');
       if (b.s.pose === 'sleep') {
         G.bump('sleep');
         sound.snore();

@@ -56,6 +56,16 @@ export const CHALLENGES: ChallengeDef[] = [
   { id: 'goal5', text: 'Kick 5 soccer goals', icon: 'star', reward: 40, target: 5, stat: 'goal' },
   { id: 'basket30', text: 'Score 30 baskets', icon: 'toy', reward: 90, target: 30, stat: 'basket' },
   { id: 'goal20', text: 'Kick 20 soccer goals', icon: 'star', reward: 90, target: 20, stat: 'goal' },
+  { id: 'read1', text: 'Read a book at the Library', icon: 'book', reward: 30, target: 1, stat: 'read' },
+  { id: 'movie1', text: 'Watch a movie at the Cinema', icon: 'film', reward: 30, target: 1, stat: 'movie' },
+  { id: 'groc1', text: 'Finish a shopping list', icon: 'cart', reward: 30, target: 1, stat: 'groceries' },
+  { id: 'cook3', text: 'Cook 3 orders at the Restaurant', icon: 'chef', reward: 40, target: 3, stat: 'cooked' },
+  { id: 'doctor1', text: 'Help a patient at the Hospital', icon: 'doctor', reward: 30, target: 1, stat: 'patients' },
+  { id: 'wash1', text: 'Wash a car at the Car Shop', icon: 'car', reward: 30, target: 1, stat: 'carwash' },
+  { id: 'ride3', text: 'Go on 3 rides at the Theme Park', icon: 'ferris', reward: 40, target: 3, stat: 'ride' },
+  { id: 'read5', text: 'Read 5 books', icon: 'book', reward: 80, target: 5, stat: 'read' },
+  { id: 'cook10', text: 'Cook 10 orders', icon: 'chef', reward: 80, target: 10, stat: 'cooked' },
+  { id: 'visitNew', text: 'Visit all 9 new places in town', icon: 'map', reward: 90, target: 9, check: (s) => s.visited.filter((v) => ['library', 'cinema', 'hotel', 'grocery', 'restaurant', 'mall', 'hospital', 'carshop', 'themepark'].includes(v)).length },
   { id: 'floor1', text: 'Put a new floor in a room', icon: 'floor', reward: 25, target: 1, stat: 'floor' },
   { id: 'resize1', text: 'Make something bigger or smaller', icon: 'decorate', reward: 25, target: 1, stat: 'resize' },
   { id: 'matchRoom', text: 'Decorate a room with 4 matching things', icon: 'home', reward: 60, target: 4, check: (s) => matching(s) },
@@ -95,6 +105,10 @@ const REPEATS: { stat: string; text: (n: number) => string; icon: string; step: 
   { stat: 'basket', text: (n) => `Score ${n} baskets`, icon: 'toy', step: 10, reward: 35 },
   { stat: 'goal', text: (n) => `Kick ${n} soccer goals`, icon: 'star', step: 8, reward: 35 },
   { stat: 'manicure', text: (n) => `Give ${n} manicures`, icon: 'makeup', step: 3, reward: 35 },
+  { stat: 'read', text: (n) => `Read ${n} books`, icon: 'book', step: 3, reward: 40 },
+  { stat: 'cooked', text: (n) => `Cook ${n} orders`, icon: 'chef', step: 5, reward: 35 },
+  { stat: 'patients', text: (n) => `Help ${n} patients`, icon: 'doctor', step: 3, reward: 35 },
+  { stat: 'ride', text: (n) => `Go on ${n} rides`, icon: 'ferris', step: 5, reward: 35 },
 ];
 
 /** Builds the nth endless challenge. */

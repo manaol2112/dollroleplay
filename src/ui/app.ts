@@ -4,7 +4,7 @@ import { FURNITURE, FURN_BY_ID, furnThumb, type FurnCat } from '../art/furniture
 import { FLOORS, WALLS, ground, landscape } from '../art/scenes';
 import { CURTAINS, TRIMS, floorSwatch, wallSwatch } from '../art/roomstyle';
 import { TOWN_H, TOWN_LAYER, TOWN_SPOTS, TOWN_TOP, TOWN_W, townLayers } from '../art/town';
-import { BUILDING_FIRST_PLACE, HOME_ROOMS, PLACES } from '../data/places';
+import { BUILDING_FIRST_PLACE, HOME_ROOMS, PLACES, designable, indoorStyle } from '../data/places';
 import { claimableCount, dailyReady } from '../data/state';
 import { keepAudioAwake, sound, startMusic, unlockAudio } from '../engine/audio';
 import { burst, celebrate, setWeather } from '../engine/particles';
@@ -12,6 +12,7 @@ import { SceneView } from '../engine/scene';
 import { G, toast } from '../game';
 import type { Look, Season } from '../types';
 import { openCloset } from './closet';
+import { openCarWash, openDoctor, openGrocery, openRestaurant, openStories } from './activities';
 import { openNails } from './nails';
 import { openSports } from './sports';
 import { confirmBox, el, esc, headThumb, still } from './dom';
@@ -45,6 +46,15 @@ const CAT_INFO: Record<string, { name: string; icon: string }> = {
   stage: { name: 'Stage', icon: 'stage' },
   salon: { name: 'Salon', icon: 'salon' },
   shop: { name: 'Shop', icon: 'shop' },
+  library: { name: 'Library', icon: 'book' },
+  cinema: { name: 'Cinema', icon: 'film' },
+  hotel: { name: 'Hotel', icon: 'bell' },
+  grocery: { name: 'Grocery', icon: 'cart' },
+  restaurant: { name: 'Restaurant', icon: 'chef' },
+  mall: { name: 'Mall', icon: 'bag' },
+  hospital: { name: 'Hospital', icon: 'doctor' },
+  cars: { name: 'Cars', icon: 'car' },
+  rides: { name: 'Rides', icon: 'ferris' },
 };
 
 export class App {
@@ -297,8 +307,7 @@ export class App {
     const actions = el('div', 'actions');
     this.stage.appendChild(actions);
     this.renderActions(actions);
-    if (!place.room && this.trayTab !== 'friends' && !place.tray.includes(this.trayTab as FurnCat)) this.trayTab = 'friends';
-    if ((place.room || place.yard) && this.trayTab !== 'friends' && this.trayTab !== 'style' && !place.tray.includes(this.trayTab as FurnCat)) this.trayTab = 'friends';
+    if (this.trayTab !== 'friends' && !(this.trayTab === 'style' && designable(place)) && !place.tray.includes(this.trayTab as FurnCat)) this.trayTab = 'friends';
     this.renderTray();
     requestAnimationFrame(() => scene.layout());
     if (!G.s.dolls.some((d) => d.place === id) && G.s.stats[`hint-${id}`] === undefined) {
@@ -320,7 +329,12 @@ export class App {
     if (id === 'salon') html += b('makeover', 'scissors', 'Makeover') + b('nails', 'makeup', 'Nails');
     if (id === 'playground') html += b('sports', 'toy', 'Sports');
     if (id === 'boutique') html += b('shop', 'bag', 'Shop');
-    if (PLACES[id]?.room || PLACES[id]?.yard) html += b('decorate', 'decorate', 'Decorate');
+    const placeActs: Record<string, [string, string, string]> = {
+      library: ['read', 'book', 'Read'], cinema: ['movies', 'film', 'Movies'], grocery: ['groceries', 'cart', 'Shopping'], restaurant: ['cook', 'chef', 'Cook'],
+      hospital: ['doctor', 'doctor', 'Doctor'], carshop: ['carwash', 'car', 'Car Wash'], hotel: ['roomservice', 'bell', 'Room Service'], mall: ['shop', 'bag', 'Shop'],
+    };
+    if (placeActs[id]) html += b(...placeActs[id]);
+    if (PLACES[id] && designable(PLACES[id])) html += b('decorate', 'decorate', 'Decorate');
     box.innerHTML = html;
     box.onclick = (e) => {
       const t = e.target as Element;
@@ -371,7 +385,28 @@ export class App {
         this.openClosetFor(target.id, 'salon');
       }
       if (act === 'shop') openShop();
-      if (act === 'decorate') openCatalog((fid) => this.scene?.dropIn('item', fid));
+      const back = () => {
+        sc.renderAll();
+        this.refreshHud();
+      };
+      if (act === 'read') openStories('book', back);
+      if (act === 'movies') openStories('movie', back);
+      if (act === 'groceries') openGrocery(back);
+      if (act === 'cook') openRestaurant(back);
+      if (act === 'doctor') openDoctor(sc.dolls()[0]?.id, back);
+      if (act === 'carwash') openCarWash(back, (fid, color) => {
+        if (!G.owns(fid)) return;
+        const yard = G.s.scenes.backyard;
+        yard.items.push({ uid: G.s.nextUid++, def: fid, x: 1150 + Math.random() * 200, y: 860, color });
+        G.changed();
+      });
+      if (act === 'roomservice') {
+        const menu = ['cake', 'cupcake', 'pizza', 'juice', 'teaSet', 'cookie', 'burger', 'pancakes', 'sundae'].filter((x) => FURN_BY_ID[x]);
+        sc.dropIn('item', menu[Math.floor(Math.random() * menu.length)]);
+        sound.ding();
+        toast('Ding! Room service is here.', 'bell');
+      }
+      if (act === 'decorate') openCatalog((fid) => this.scene?.dropIn('item', fid), PLACES[id]?.decor ? PLACES[id].tray[0] : undefined);
       this.renderActions(box);
     };
   }
@@ -431,7 +466,7 @@ export class App {
   private trayTabs(): TrayTab[] {
     if (this.screen.kind !== 'place') return [];
     const p = PLACES[this.screen.id];
-    return ['friends', ...(p.room || p.yard ? (['style'] as TrayTab[]) : []), ...p.tray];
+    return ['friends', ...(designable(p) ? (['style'] as TrayTab[]) : []), ...p.tray];
   }
 
   private trayLazy: IntersectionObserver | null = null;
@@ -460,12 +495,12 @@ export class App {
         }
         return [...m.entries()];
       };
-      if (place.room) {
+      if (indoorStyle(place)) {
         for (const [grp, ws] of bygroup(WALLS)) cards += sec(`Wallpaper · ${grp}`) + ws.map((w) => this.styleCard('wall', w.id, w.name, sc.wall === w.id, () => wallSwatch(w))).join('');
         for (const [grp, fs] of bygroup(FLOORS.filter((x) => !x.outdoor))) cards += sec(`Floor · ${grp}`) + fs.map((x) => this.styleCard('floor', x.id, x.name, sc.floor === x.id, () => floorSwatch(x))).join('');
       } else for (const [grp, fs] of bygroup(FLOORS.filter((x) => x.outdoor))) cards += sec(`Ground · ${grp}`) + fs.map((x) => this.styleCard('floor', x.id, x.name, sc.floor === x.id, () => floorSwatch(x))).join('');
-      cards += sec(place.room ? 'Trim' : 'Fence') + TRIMS.map(([nm, c]) => `<div class="tcard dotcard${(sc.trim ?? '#ffffff') === c ? ' on' : ''}" data-kind="trim" data-id="${c}"><i class="bigdot" style="background:${c}"></i><span class="lbl">${esc(nm)}</span></div>`).join('');
-      if (place.room) cards += sec('Curtains') + CURTAINS.map(([nm, c]) => `<div class="tcard dotcard${sc.curtain === c ? ' on' : ''}" data-kind="curtain" data-id="${c}"><i class="bigdot" style="background:${c}"></i><span class="lbl">${esc(nm)}</span></div>`).join('');
+      cards += sec(indoorStyle(place) ? 'Trim' : 'Fence') + TRIMS.map(([nm, c]) => `<div class="tcard dotcard${(sc.trim ?? '#ffffff') === c ? ' on' : ''}" data-kind="trim" data-id="${c}"><i class="bigdot" style="background:${c}"></i><span class="lbl">${esc(nm)}</span></div>`).join('');
+      if (indoorStyle(place)) cards += sec('Curtains') + CURTAINS.map(([nm, c]) => `<div class="tcard dotcard${sc.curtain === c ? ' on' : ''}" data-kind="curtain" data-id="${c}"><i class="bigdot" style="background:${c}"></i><span class="lbl">${esc(nm)}</span></div>`).join('');
     } else {
       const list = FURNITURE.filter((f) => f.cat === this.trayTab);
       let last = '';

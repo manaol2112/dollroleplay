@@ -91,6 +91,14 @@ export const ICONS: Record<string, string> = {
   flute: S(`<g transform="rotate(-30 32 32)">${r(4, 28, 56, 8, 4, 'url(#g-silver)')}${[18, 26, 34, 42, 50].map((x) => c(x, 32, 2.2, '#4a4a5e')).join('')}</g>` + p(sparkleD(50, 14, 5), '#7cc8ff')),
   trumpet: S(r(10, 26, 30, 8, 4, 'url(#g-gold)') + p('M40 22 L58 12 L58 48 L40 38Z', 'url(#g-gold)') + [18, 24, 30].map((x) => r(x - 2, 16, 4, 12, 2, '#d99a1e')).join('') + c(8, 30, 4, '#d99a1e')),
   drums: S(`<ellipse cx="32" cy="24" rx="24" ry="8" fill="#fff"/>` + r(8, 24, 48, 24, 4, '#ff7eb6') + `<ellipse cx="32" cy="48" rx="24" ry="8" fill="#e0457b"/>` + p('M8 28 L56 44 M56 28 L8 44', '', st('#ffd24a', 2.5)) + p('M40 6 L28 22 M50 8 L36 22', '', st('#c98a5a', 3))),
+  book: S(p('M8 14 Q20 8 32 14 L32 54 Q20 48 8 54Z', '#ff9ec7') + p('M56 14 Q44 8 32 14 L32 54 Q44 48 56 54Z', '#c99bff') + p('M12 22 L26 20 M12 30 L26 28 M38 20 L52 22 M38 28 L52 30', '', st('#fff', 2.5))),
+  film: S(r(8, 16, 48, 34, 6, '#4a4a5e') + r(14, 22, 36, 22, 3, '#7cc8ff') + [12, 22, 32, 42, 52].map((x) => r(x - 2, 10, 5, 4, 1, '#4a4a5e') + r(x - 2, 52, 5, 4, 1, '#4a4a5e')).join('') + p('M28 27 L38 33 L28 39Z', '#fff')),
+  cart: S(p('M6 12 L14 12 L20 40 L50 40 L56 20 L17 20', '', st('#4f9dff', 4.5)) + c(24, 50, 5, '#4a4a5e') + c(46, 50, 5, '#4a4a5e') + c(30, 28, 5, '#ff7a6b') + c(42, 28, 5, '#7fd36b')),
+  chef: S(p('M16 34 C6 30 8 14 20 16 C22 6 42 6 44 16 C56 14 58 30 48 34Z', '#ffffff', 'stroke="#e6e0ee" stroke-width="2"') + r(18, 34, 28, 14, 3, '#ffffff', 'stroke="#e6e0ee" stroke-width="2"') + p('M24 40 L40 40', '', st('#ff9ec7', 3))),
+  doctor: S(r(10, 18, 44, 34, 8, '#ff7eb6') + r(24, 10, 16, 10, 3, '#e0457b') + r(28, 26, 8, 20, 2, '#fff') + r(22, 32, 20, 8, 2, '#fff')),
+  car: S(p('M6 40 L10 28 Q12 22 20 22 L40 22 Q48 22 52 28 L58 40 L58 46 L6 46Z', '#ff7eb6') + p('M18 30 L22 25 L30 25 L30 30Z M34 30 L34 25 L42 25 L46 30Z', '#d9efff') + c(18, 46, 6, '#4a4a5e') + c(46, 46, 6, '#4a4a5e') + c(18, 46, 2.5, '#c9cfdd') + c(46, 46, 2.5, '#c9cfdd')),
+  bell: S(p('M14 44 Q14 18 32 16 Q50 18 50 44Z', 'url(#g-gold)') + r(10, 44, 44, 6, 3, '#d99a1e') + c(32, 12, 4, '#d99a1e') + p(sparkleD(52, 14, 5), '#fff')),
+  ferris: S(c(32, 28, 20, 'none', st('#ff7eb6', 3)) + [0, 60, 120].map((a) => `<path d="M32 28 l${(Math.cos((a * Math.PI) / 180) * 20).toFixed(1)} ${(Math.sin((a * Math.PI) / 180) * 20).toFixed(1)} M32 28 l${(-Math.cos((a * Math.PI) / 180) * 20).toFixed(1)} ${(-Math.sin((a * Math.PI) / 180) * 20).toFixed(1)}" ${st('#ff9ec7', 2)}/>`).join('') + p('M24 58 L32 30 L40 58', '', st('#c99bff', 4)) + [0, 72, 144, 216, 288].map((a) => c(32 + Math.cos((a * Math.PI) / 180) * 20, 28 + Math.sin((a * Math.PI) / 180) * 20, 4, '#ffd36b')).join('')),
   hat: S(p('M10 44 Q32 36 54 44 Q32 52 10 44Z', '#ff7eb6') + p('M18 42 Q18 14 32 14 Q46 14 46 42Z', '#ff9ec7') + r(18, 34, 28, 6, 2, '#fff')),
 };
 

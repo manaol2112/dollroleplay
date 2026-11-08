@@ -234,7 +234,8 @@ describe('challenges', () => {
   it('never runs out', () => {
     const s = newState();
     // Meet the challenges that look at the town rather than counting things.
-    s.visited = ['home', 'school', 'playground', 'theater', 'salon', 'boutique'];
+    s.visited = ['home', 'school', 'playground', 'theater', 'salon', 'boutique', 'library', 'cinema', 'hotel', 'grocery', 'restaurant', 'mall', 'hospital', 'carshop', 'themepark'];
+    for (let k = 0; k < 4; k++) s.scenes.bedroom.items.push({ uid: 9000 + k, def: 'f-sofa-princess', x: 100 * k, y: 700 });
     s.seasonsSeen = [...SEASONS];
     s.songsDone = SONGS.map((x) => x.id);
     while (s.dolls.length < 6) s.dolls.push({ ...s.dolls[0], id: 'x' + s.dolls.length });

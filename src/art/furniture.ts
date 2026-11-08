@@ -587,6 +587,10 @@ import { BEDROOM_MORE } from './furn/bedroom';
 import { LIVING_MORE } from './furn/living';
 import { KITCHEN_MORE } from './furn/kitchen';
 import { DECOR_MORE } from './furn/decor';
+import { LEISURE_MORE } from './furn/leisure';
+import { SHOPS_MORE } from './furn/shops';
+import { CARE_MORE } from './furn/care';
+import { RIDES_MORE } from './furn/rides';
 
 const ORIGINALS: FurnDef[] = [...BEDROOM, ...KITCHEN, ...LIVING, ...WALL, ...OUTDOOR, ...SCHOOL, ...STAGE, ...SALON, ...SHOP, ...PROPS];
 // Originals filed under the newer, finer categories.
@@ -599,7 +603,7 @@ for (const d of ORIGINALS) {
   d.group ??= 'Favorites';
   if (RECAT[d.id]) d.cat = RECAT[d.id];
 }
-export const FURNITURE: FurnDef[] = [...ORIGINALS, ...BEDROOM_MORE, ...LIVING_MORE, ...KITCHEN_MORE, ...DECOR_MORE];
+export const FURNITURE: FurnDef[] = [...ORIGINALS, ...BEDROOM_MORE, ...LIVING_MORE, ...KITCHEN_MORE, ...DECOR_MORE, ...LEISURE_MORE, ...SHOPS_MORE, ...CARE_MORE, ...RIDES_MORE];
 export const FURN_BY_ID: Record<string, FurnDef> = {};
 for (const d of FURNITURE) {
   if (FURN_BY_ID[d.id]) console.warn(`Duplicate furniture id: ${d.id}`);

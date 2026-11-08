@@ -619,12 +619,19 @@ const CATALOG_TABS: { id: FurnCat; name: string; icon: string }[] = [
   { id: 'electronics', name: 'Gadgets', icon: 'tv' }, { id: 'lighting', name: 'Lights', icon: 'lamp' }, { id: 'kitchen', name: 'Kitchen', icon: 'fridge' },
   { id: 'bath', name: 'Bath', icon: 'bath' }, { id: 'decor', name: 'Decor', icon: 'decor' }, { id: 'plants', name: 'Plants', icon: 'plant' },
   { id: 'wall', name: 'Walls', icon: 'wall' }, { id: 'rugs', name: 'Rugs', icon: 'rug' }, { id: 'yard', name: 'Yard', icon: 'tree' },
+  { id: 'library', name: 'Library', icon: 'book' }, { id: 'cinema', name: 'Cinema', icon: 'film' }, { id: 'hotel', name: 'Hotel', icon: 'bell' },
+  { id: 'grocery', name: 'Grocery', icon: 'cart' }, { id: 'restaurant', name: 'Restaurant', icon: 'chef' }, { id: 'mall', name: 'Mall', icon: 'bag' },
+  { id: 'hospital', name: 'Hospital', icon: 'doctor' }, { id: 'cars', name: 'Cars', icon: 'car' }, { id: 'rides', name: 'Rides', icon: 'ferris' },
   { id: 'outdoor', name: 'Park', icon: 'tree' }, { id: 'toys', name: 'Toys', icon: 'toy' }, { id: 'food', name: 'Food', icon: 'apple' },
 ];
 const catalogMemo: { tab: FurnCat; style: string; scroll: number } = { tab: 'bedroom', style: '', scroll: 0 };
 
 /** The big furniture catalog: browse by room or by design collection, tap to place. */
-export function openCatalog(onPlace: (id: string) => void): void {
+export function openCatalog(onPlace: (id: string) => void, startTab?: FurnCat): void {
+  if (startTab && startTab !== catalogMemo.tab && CATALOG_TABS.some((t) => t.id === startTab)) {
+    catalogMemo.tab = startTab;
+    catalogMemo.style = '';
+  }
   const m = openModal('shop catalog', `<div class="shop-head"><h2>${icon('decorate')}Decorate</h2><div class="coins-big">${icon('coin')}<span></span></div><button class="round-btn" data-close>${icon('close')}</button></div>
     <div class="shop-tabs"></div><div class="style-chips"></div><div class="shop-grid cat-grid"></div>`);
   let lazy: IntersectionObserver | null = null;
