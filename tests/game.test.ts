@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderDoll, HAIR } from '../src/art/doll';
 import { FURNITURE } from '../src/art/furniture';
 import { WEAR } from '../src/art/wear';
-import { townArt } from '../src/art/scenes';
+import { townLayers } from '../src/art/town';
 import { CHALLENGES } from '../src/data/challenges';
 import { baseLook, randomLook, starterLooks } from '../src/data/looks';
 import { PLACES } from '../src/data/places';
@@ -63,7 +63,8 @@ describe('art', () => {
   it('draws every place and the town in every season', () => {
     const s = newState();
     for (const season of SEASONS) {
-      expect(townArt(season)).not.toMatch(bad);
+      const t = townLayers(season, { home: [baseLook()], theater: [baseLook(), baseLook()] }, true);
+      for (const layer of Object.values(t)) expect(layer).not.toMatch(bad);
       for (const p of Object.values(PLACES)) expect(p.bg(season, s.scenes[p.id], {}), `${p.id} ${season}`).not.toMatch(bad);
     }
   });

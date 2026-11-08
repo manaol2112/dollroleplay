@@ -1,14 +1,15 @@
 // The app shell: title screen, town map, places, the top bar and the tray of friends and things.
 import { renderDoll } from '../art/doll';
 import { FURNITURE, FURN_BY_ID, furnThumb, type FurnCat } from '../art/furniture';
-import { FLOORS, WALLS, ground, landscape, townArt } from '../art/scenes';
+import { FLOORS, WALLS, ground, landscape } from '../art/scenes';
+import { TOWN_H, TOWN_LAYER, TOWN_SPOTS, TOWN_TOP, TOWN_W, townLayers } from '../art/town';
 import { BUILDING_FIRST_PLACE, HOME_ROOMS, PLACES } from '../data/places';
 import { claimableCount, dailyReady } from '../data/state';
 import { keepAudioAwake, sound, startMusic, unlockAudio } from '../engine/audio';
 import { burst, celebrate, setWeather } from '../engine/particles';
 import { SceneView } from '../engine/scene';
 import { G, toast } from '../game';
-import type { Season } from '../types';
+import type { Look, Season } from '../types';
 import { openCloset } from './closet';
 import { confirmBox, el, esc, floorThumb, headThumb, wallThumb } from './dom';
 import { icon } from './icons';
@@ -116,44 +117,150 @@ export class App {
   }
 
   // ---------------- map ----------------
+  /** Where the town map was scrolled to, in town units (kept while the app is open). */
+  private mapX = -1;
+
   private showMap(): void {
     setWeather(G.s.season);
     const root = el('div', 'map-screen');
-    const svgNS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    svg.setAttribute('class', 'map-svg');
+    const NS = 'http://www.w3.org/2000/svg';
+    const mk = (cls: string) => {
+      const e = document.createElementNS(NS, 'svg');
+      e.setAttribute('class', cls);
+      return e;
+    };
+    const sky = mk('map-sky');
+    sky.setAttribute('viewBox', '0 0 1600 900');
+    sky.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    const names = ['far', 'mid', 'main', 'front'] as const;
+    const layers = Object.fromEntries(names.map((n) => [n, mk(`map-layer ${n}`)])) as Record<(typeof names)[number], SVGSVGElement>;
+    root.append(sky, ...names.map((n) => layers[n]));
+    root.insertAdjacentHTML('beforeend', `<button class="map-arrow left" aria-label="Scroll left">${icon('back')}</button><button class="map-arrow right" aria-label="Scroll right">${icon('back')}</button>`);
+    this.stage.appendChild(root);
+
     const draw = () => {
-      let extra = '';
-      if (dailyReady(G.s)) extra += `<g class="gift-box" data-gift="1" transform="translate(560 560)"><g class="map-bounce">${`<ellipse cx="0" cy="6" rx="46" ry="12" fill="url(#g-ground)"/>`}<rect x="-38" y="-60" width="76" height="62" rx="8" fill="#c99bff"/><rect x="-44" y="-74" width="88" height="20" rx="6" fill="#b583ff"/><rect x="-7" y="-74" width="14" height="76" fill="#ffd36b"/><path d="M0 -74 C-20 -104 -44 -84 -16 -74Z M0 -74 C20 -104 44 -84 16 -74Z" fill="#ffd36b"/></g></g>`;
-      svg.innerHTML = townArt(G.s.season) + extra;
+      const friends: Record<string, Look[]> = {};
+      for (const d of G.s.dolls) if (d.place) (friends[PLACES[d.place].building] ??= []).push(d.look);
+      const art = townLayers(G.s.season, friends, dailyReady(G.s));
+      sky.innerHTML = art.sky;
+      for (const n of names) {
+        layers[n].setAttribute('viewBox', `0 ${TOWN_TOP} ${TOWN_LAYER[n].w} ${TOWN_H}`);
+        layers[n].setAttribute('preserveAspectRatio', 'none');
+        layers[n].innerHTML = art[n];
+      }
     };
     draw();
-    root.appendChild(svg);
-    this.stage.appendChild(root);
+
+    let scale = 1;
+    let viewW = 1600;
+    let x = this.mapX;
+    const maxX = () => Math.max(0, TOWN_W - viewW);
+    const apply = () => {
+      x = Math.max(0, Math.min(maxX(), x));
+      this.mapX = x;
+      for (const n of names) layers[n].style.transform = `translate3d(${(-x * TOWN_LAYER[n].k * scale).toFixed(1)}px,0,0)`;
+      root.classList.toggle('at-start', x <= 40);
+      root.classList.toggle('at-end', x >= maxX() - 2);
+    };
     const fit = () => {
       const r = root.getBoundingClientRect();
-      const s = Math.min(r.width / 1600, r.height / 960);
-      const w = r.width / s;
-      const h = r.height / s;
-      svg.setAttribute('viewBox', `${800 - w / 2} ${490 - h / 2} ${w} ${h}`);
+      if (!r.height) return;
+      scale = r.height / TOWN_H;
+      viewW = r.width / scale;
+      for (const n of names) {
+        layers[n].style.width = `${(TOWN_LAYER[n].w * scale).toFixed(0)}px`;
+        layers[n].style.height = `${r.height}px`;
+      }
+      if (x < 0) x = Math.max(0, TOWN_SPOTS[0].x - viewW * 0.3);
+      apply();
     };
     this.mapRO = new ResizeObserver(fit);
     this.mapRO.observe(root);
     fit();
-    svg.addEventListener('click', (e) => {
-      const t = e.target as Element;
-      if (t.closest('[data-gift]')) {
-        openChallenges();
+
+    // Swipe with momentum; a touch that barely moves is a tap on a building.
+    let glide = 0;
+    let press: { id: number; sx: number; x0: number; lx: number; lt: number; v: number; moved: boolean } | null = null;
+    const glideTo = (target: number) => {
+      cancelAnimationFrame(glide);
+      const from = x;
+      const t0 = performance.now();
+      const step = (now: number) => {
+        const t = Math.min(1, (now - t0) / 450);
+        x = from + (target - from) * (1 - (1 - t) ** 3);
+        apply();
+        if (t < 1) glide = requestAnimationFrame(step);
+      };
+      glide = requestAnimationFrame(step);
+    };
+    root.addEventListener('pointerdown', (e) => {
+      if ((e.target as Element).closest('.map-arrow')) return;
+      cancelAnimationFrame(glide);
+      press = { id: e.pointerId, sx: e.clientX, x0: x, lx: e.clientX, lt: e.timeStamp, v: 0, moved: false };
+      root.setPointerCapture(e.pointerId);
+    });
+    root.addEventListener('pointermove', (e) => {
+      if (!press || e.pointerId !== press.id) return;
+      const dx = e.clientX - press.sx;
+      if (!press.moved && Math.abs(dx) < 8) return;
+      press.moved = true;
+      root.classList.add('dragging');
+      x = press.x0 - dx / scale;
+      const dt = Math.max(1, e.timeStamp - press.lt);
+      press.v = 0.75 * (-(e.clientX - press.lx) / scale / dt) + 0.25 * press.v;
+      press.lx = e.clientX;
+      press.lt = e.timeStamp;
+      apply();
+    });
+    const release = (e: PointerEvent) => {
+      if (!press || e.pointerId !== press.id) return;
+      const p = press;
+      press = null;
+      root.classList.remove('dragging');
+      if (!p.moved) {
+        const hit = document.elementsFromPoint(e.clientX, e.clientY).map((h) => h.closest('[data-place],[data-gift]')).find(Boolean) as SVGGElement | undefined;
+        if (!hit) return;
+        if (hit.dataset.gift) return openChallenges();
+        const id = hit.dataset.place!;
+        sound.pop();
+        hit.classList.add('tapped');
+        window.setTimeout(() => this.go({ kind: 'place', id: BUILDING_FIRST_PLACE[id] }), 250);
         return;
       }
-      const spot = t.closest('[data-place]') as SVGGElement | null;
-      if (!spot) return;
-      const id = spot.dataset.place!;
-      sound.pop();
-      spot.classList.add('tapped');
-      window.setTimeout(() => this.go({ kind: 'place', id: BUILDING_FIRST_PLACE[id] }), 250);
+      // Cap the fling so one flick moves about a screen, not the whole town.
+      let v = Math.max(-2.2, Math.min(2.2, p.v)) * 16;
+      const step = () => {
+        if (Math.abs(v) < 0.4) return;
+        x += v;
+        v *= 0.94;
+        apply();
+        if (x > 0 && x < maxX()) glide = requestAnimationFrame(step);
+      };
+      glide = requestAnimationFrame(step);
+    };
+    root.addEventListener('pointerup', release);
+    root.addEventListener('pointercancel', () => {
+      press = null;
+      root.classList.remove('dragging');
     });
+    root.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      cancelAnimationFrame(glide);
+      x += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / scale;
+      apply();
+    }, { passive: false });
+    root.querySelector('.map-arrow.left')!.addEventListener('click', () => {
+      sound.tap();
+      glideTo(Math.max(0, x - viewW * 0.7));
+    });
+    root.querySelector('.map-arrow.right')!.addEventListener('click', () => {
+      sound.tap();
+      glideTo(Math.min(maxX(), x + viewW * 0.7));
+    });
+    if (G.s.stats['hint-townswipe'] === undefined) {
+      G.s.stats['hint-townswipe'] = 1;
+      window.setTimeout(() => toast('Swipe sideways to explore the whole town!', 'map'), 900);
+    }
     (root as HTMLDivElement & { redraw?: () => void }).redraw = draw;
   }
 

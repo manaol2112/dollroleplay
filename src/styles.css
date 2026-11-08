@@ -473,3 +473,24 @@ h2, h3 { margin: 0; font-weight: 700; }
 .shop-card .thumb { position: relative; }
 
 .kind-chips .chip.on { background: linear-gradient(180deg, #ff9ec7, #ff6f9f); }
+
+/* ---------- scrolling town map ---------- */
+.map-screen { touch-action: none; overflow: hidden; cursor: grab; }
+.map-screen.dragging { cursor: grabbing; }
+.map-sky { position: absolute; inset: 0; width: 100%; height: 100%; }
+.map-layer { position: absolute; left: 0; top: 0; will-change: transform; }
+.map-layer.front { pointer-events: none; }
+.map-layer.far, .map-layer.mid { pointer-events: none; }
+.map-screen.dragging .map-spot { pointer-events: none; }
+.map-arrow { position: absolute; top: 50%; margin-top: -32px; width: 64px; height: 64px; border-radius: 50%; background: var(--glass); box-shadow: var(--shadow); border: 3px solid #fff;
+  display: grid; place-items: center; z-index: 5; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: opacity 0.25s, transform 0.12s; animation: nudge 2.4s ease-in-out infinite; }
+.map-arrow svg { width: 44px; height: 44px; }
+.map-arrow.left { left: calc(14px + var(--safe-l)); }
+.map-arrow.right { right: calc(14px + var(--safe-r)); }
+.map-arrow.right svg { transform: scaleX(-1); }
+.map-screen.at-start .map-arrow.left, .map-screen.at-end .map-arrow.right { opacity: 0; pointer-events: none; }
+.map-arrow:active { transform: scale(0.9); }
+@keyframes nudge { 50% { translate: 4px 0; } }
+.map-arrow.left { animation-name: nudgeL; }
+@keyframes nudgeL { 50% { translate: -4px 0; } }
+.map-doll { pointer-events: none; }

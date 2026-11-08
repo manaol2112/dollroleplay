@@ -30,7 +30,7 @@ export interface SeasonLook {
 export const SEASON_LOOK: Record<Season, SeasonLook> = {
   spring: { skyTop: '#7fcaff', skyBottom: '#e3f5ff', grass: '#9be07f', grassDark: '#74c766', hill1: '#b6eb98', hill2: '#8fd98a', leaves: ['#ffb7d5', '#ffd1e3', '#ff9ec7', '#ffffff'], sun: '#fff2a8' },
   summer: { skyTop: '#3fb0ff', skyBottom: '#c6ecff', grass: '#64d06a', grassDark: '#47b85a', hill1: '#86dd74', hill2: '#5cc566', leaves: ['#3fbf5f', '#5fd06a', '#2fa651', '#8fe07a'], sun: '#ffe066' },
-  fall: { skyTop: '#ffb98a', skyBottom: '#fff1dc', grass: '#d8bd62', grassDark: '#c29f48', hill1: '#e8c070', hill2: '#d9a756', leaves: ['#ff8a3d', '#e8573d', '#ffc23d', '#d9672e'], sun: '#ffd08a' },
+  fall: { skyTop: '#ffb98a', skyBottom: '#fff1dc', grass: '#c3c56c', grassDark: '#a9ab58', hill1: '#e6c27c', hill2: '#cfb066', leaves: ['#ff8a3d', '#e8573d', '#ffc23d', '#d9672e'], sun: '#ffd08a' },
   winter: { skyTop: '#9fc0e8', skyBottom: '#eef4fc', grass: '#f6f9ff', grassDark: '#dfe9f7', hill1: '#eaf1fb', hill2: '#dbe7f6', leaves: ['#2f7a5a', '#3a8a66', '#2a6b50', '#ffffff'], sun: '#fdfbe8' },
 };
 
