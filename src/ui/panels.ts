@@ -554,7 +554,8 @@ export function openPiano(host: HTMLElement, hooks: PianoHooks): () => void {
   keysEl.addEventListener('pointercancel', lift);
   panel.addEventListener('click', (e) => {
     const t = e.target as Element;
-    const it = t.closest('[data-inst]') as HTMLElement | null;
+    // Only the tab buttons: the panel itself also carries data-inst (for styling).
+    const it = t.closest('.itab') as HTMLElement | null;
     if (it) {
       inst = it.dataset.inst as Instrument;
       lastInstrument = inst;
