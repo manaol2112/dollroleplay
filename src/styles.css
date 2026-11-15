@@ -265,6 +265,9 @@ h2, h3 { margin: 0; font-weight: 700; }
 .set-row.on .tog { background: var(--mint); }
 .set-row.on .tog::after { transform: translateX(26px); }
 .set-row.danger { color: #d9385e; }
+.set-row small { display: block; font-size: 14px; font-weight: 600; color: var(--ink-soft); margin-top: 2px; }
+.set-row .try { display: flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 16px; background: #ffe6f1; color: var(--pink-d); font-size: 15px; }
+.set-row .try svg { width: 22px; height: 22px; }
 .tip { display: flex; gap: 10px; align-items: center; background: #f5fbff; border-radius: 20px; padding: 10px 14px; font-size: 15px; color: var(--ink-soft); }
 .tip svg { width: 32px; height: 32px; flex: none; }
 

@@ -35,7 +35,10 @@ pass, updates the live game.
   carousel, teacups and more), and each has its own activity:
   - **Library:** 14 illustrated picture books, each with a moral (honesty, patience, sharing, kindness,
     bravery...). Tap **Read to me** to hear them read aloud.
-  - **Cinema:** 6 animated movies with curtains, subtitles read aloud, and popcorn.
+  - **Cinema:** 6 animated movies with curtains, a calm film score, subtitles read aloud, and popcorn.
+    Stories are read in the most natural voice the device has (never the robotic novelty voices);
+    pick a different one under **Settings › Story voice**. On iPad, downloading a Premium voice such
+    as Ava (iPad Settings › Accessibility › Spoken Content › Voices) makes it sound even better.
   - **Restaurant:** cook burgers, pizza, sundaes, pancakes and salad for tips.
   - **Grocery shop:** fill the basket from a shopping list.
   - **Hospital:** be the doctor and help patients feel better.

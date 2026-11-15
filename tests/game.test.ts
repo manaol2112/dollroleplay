@@ -5,6 +5,8 @@ import { WEAR } from '../src/art/wear';
 import { townLayers } from '../src/art/town';
 import { CHALLENGES } from '../src/data/challenges';
 import { baseLook, randomLook, starterLooks } from '../src/data/looks';
+import { rankVoices, sentences } from '../src/engine/voice';
+import { STORIES } from '../src/data/stories';
 import { OLD_PARK_LAYOUT, PARK_LAYOUT, PLACES } from '../src/data/places';
 import { orbitAngle, orbitAt, orbitOf, orbitOpen } from '../src/art/furn/kit';
 import { makeQuestion } from '../src/data/quiz';
@@ -131,6 +133,31 @@ describe('theme park rides', () => {
     expect(car.art('#ff9ec7', true)).toContain('animateTransform');
     expect(car.art('#ff9ec7', false)).not.toContain('type="translate" values');
     expect(orbitOpen(orbitOf(seats[0].anim!))).not.toMatch(bad);
+  });
+});
+
+describe('story voice', () => {
+  const v = (name: string, voiceURI: string, lang = 'en-US') => ({ name, voiceURI, lang, localService: true });
+  // a typical iPad list: novelty and Eloquence voices next to the natural ones
+  const ipad = [
+    v('Albert', 'com.apple.speech.synthesis.voice.Albert'), v('Zarvox', 'com.apple.speech.synthesis.voice.Zarvox'), v('Fred', 'com.apple.speech.synthesis.voice.Fred'),
+    v('Grandpa (English (US))', 'com.apple.eloquence.en-US.Grandpa'), v('Eddy (English (US))', 'com.apple.eloquence.en-US.Eddy'), v('Bad News', 'com.apple.speech.synthesis.voice.BadNews'),
+    v('Samantha', 'com.apple.voice.compact.en-US.Samantha'), v('Daniel', 'com.apple.voice.compact.en-GB.Daniel', 'en-GB'),
+    v('Ava (Premium)', 'com.apple.voice.premium.en-US.Ava'), v('Zoe (Enhanced)', 'com.apple.voice.enhanced.en-US.Zoe'),
+    v('Thomas', 'com.apple.voice.compact.fr-FR.Thomas', 'fr-FR'), v('Whisper', 'com.apple.speech.synthesis.voice.Whisper'),
+  ];
+  it('picks a natural voice and never a robotic one', () => {
+    const ranked = rankVoices(ipad).map((x) => x.name);
+    expect(ranked[0]).toBe('Ava (Premium)');
+    expect(ranked[1]).toBe('Zoe (Enhanced)');
+    expect(ranked).toContain('Samantha');
+    for (const bad of ['Albert', 'Zarvox', 'Fred', 'Grandpa (English (US))', 'Eddy (English (US))', 'Bad News', 'Whisper', 'Thomas']) expect(ranked).not.toContain(bad);
+    // without premium voices, Samantha (a classic natural voice) comes first
+    expect(rankVoices(ipad.filter((x) => !/premium|enhanced/.test(x.voiceURI)))[0].name).toBe('Samantha');
+  });
+  it('reads stories a sentence at a time', () => {
+    expect(sentences('Pip hopped. "Wow!" said Peanut. And then... squish')).toEqual(['Pip hopped.', '"Wow!"', 'said Peanut.', 'And then...', 'squish']);
+    for (const st of STORIES) for (const p of st.pages) expect(sentences(p.text).join(' ').replace(/\s+/g, ' ')).toBe(p.text.replace(/\s+/g, ' ').trim());
   });
 });
 

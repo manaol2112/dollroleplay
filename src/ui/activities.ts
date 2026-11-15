@@ -1,5 +1,6 @@
 // Things to do in the town places: read books (library), watch movies (cinema), shop from a list
 // (grocery), cook orders (restaurant), play doctor (hospital) and wash cars (car shop).
+import { hushVoice, speakCalm } from '../engine/voice';
 import { body } from '../art/body';
 import { PALETTE, dark, light } from '../art/color';
 import { renderDoll } from '../art/doll';
@@ -7,7 +8,7 @@ import { FURNITURE, FURN_BY_ID, furnViewBox, type FurnDef } from '../art/furnitu
 import { storyCover, storyScene } from '../art/storyart';
 import { heartD, sparkleD, starD } from '../art/wear';
 import { STORIES, type Story } from '../data/stories';
-import { duckMusic, sound } from '../engine/audio';
+import { duckMusic, movieScore, sound } from '../engine/audio';
 import { burst, celebrate } from '../engine/particles';
 import { G, toast } from '../game';
 import type { Doll } from '../types';
@@ -53,42 +54,17 @@ function frame(cls: string, title: string, onClose: () => void): { root: HTMLDiv
 }
 
 // ---------------- reading aloud ----------------
-let voice: SpeechSynthesisVoice | null = null;
-function pickVoice(): SpeechSynthesisVoice | null {
-  const all = window.speechSynthesis?.getVoices() ?? [];
-  const en = all.filter((v) => /^en/i.test(v.lang));
-  return en.find((v) => /samantha|karen|moira|tessa|female|zira|aria|jenny/i.test(v.name)) ?? en.find((v) => v.localService) ?? en[0] ?? null;
+/** Reads text in the calm story voice (see engine/voice). */
+export function speak(text: string, onEnd?: () => void, rate?: number): void {
+  speakCalm(text, { enabled: !!G.s.settings.sound, voice: G.s.settings.voice, rate, onEnd });
 }
-export function speak(text: string, onEnd?: () => void): void {
-  const ss = window.speechSynthesis;
-  if (!ss || !G.s.settings.sound) {
-    if (onEnd) window.setTimeout(onEnd, Math.max(2500, text.length * 55));
-    return;
-  }
-  ss.cancel();
-  voice ??= pickVoice();
-  const u = new SpeechSynthesisUtterance(text);
-  if (voice) u.voice = voice;
-  u.rate = 0.92;
-  u.pitch = 1.1;
-  let done = false;
-  const end = () => {
-    if (done) return;
-    done = true;
-    onEnd?.();
-  };
-  u.onend = end;
-  u.onerror = end;
-  // Some browsers never fire onend; never get stuck waiting.
-  window.setTimeout(end, Math.max(4000, text.length * 95));
-  ss.speak(u);
-}
-export const hush = () => window.speechSynthesis?.cancel();
+export const hush = () => hushVoice();
 
 // ---------------- library & cinema ----------------
 export function openStories(kind: 'book' | 'movie', onClose: () => void): void {
   const fr = frame(kind === 'book' ? 'library' : 'cinema', kind === 'book' ? 'Library Books' : 'Now Showing', () => {
     hush();
+    movieScore(false);
     duckMusic(false);
     onClose();
   });
@@ -169,8 +145,11 @@ export function openStories(kind: 'book' | 'movie', onClose: () => void): void {
     draw();
   };
 
+  let movieSeq = 0;
   const playMovie = (st: Story) => {
+    const seq = ++movieSeq;
     duckMusic(true);
+    movieScore(true);
     fr.setTitle(st.title);
     let i = -1;
     let popcorn = 0;
@@ -190,13 +169,13 @@ export function openStories(kind: 'book' | 'movie', onClose: () => void): void {
         screen.innerHTML = `<div class="credits"><h3>The End</h3><p>${esc(st.moral)}</p><p class="earned">${icon('coin')} +${coins}</p><p class="small">Popcorn eaten: ${popcorn}</p></div>`;
         subs.textContent = '';
         frameEl.classList.remove('open');
-        speak(`The end. ${st.moral}`);
+        speak(`The end. ${st.moral}`, () => window.setTimeout(() => seq === movieSeq && !stopped && movieScore(false), 2500), 0.84);
         return;
       }
       const p = st.pages[i];
       screen.innerHTML = `<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" class="scene-in">${storyScene(p, { animate: true })}</svg>`;
       subs.textContent = p.text;
-      speak(p.text, () => (timer = window.setTimeout(next, 900)));
+      speak(p.text, () => (timer = window.setTimeout(next, 1100)), 0.84);
     };
     window.setTimeout(() => {
       frameEl.classList.add('open');
@@ -218,6 +197,7 @@ export function openStories(kind: 'book' | 'movie', onClose: () => void): void {
         stopped = true;
         window.clearTimeout(timer);
         hush();
+        movieScore(false);
         duckMusic(false);
         fr.body.onclick = null;
         shelf();

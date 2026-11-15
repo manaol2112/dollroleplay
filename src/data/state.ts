@@ -21,7 +21,7 @@ export interface GameState {
   songsDone: string[];
   ch: { list: string[]; base: Record<string, number>; claimed: string[]; next: number; rep: number };
   daily: string;
-  settings: { sound: boolean; music: boolean };
+  settings: { sound: boolean; music: boolean; /** Story voice picked in Settings (a voiceURI). */ voice?: string };
   nextUid: number;
   seenIntro: boolean;
   /** Leo and Dad joined saves made before boys existed. */

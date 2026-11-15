@@ -1,4 +1,5 @@
 // Pop-up panels: the boutique shop, challenges, settings, the season picker, school lessons and the piano.
+import { chosenVoice, speakCalm, storyVoices, voiceLabel } from '../engine/voice';
 import { HAIR } from '../art/doll';
 import { FURNITURE, FURN_BY_ID, type FurnCat, furnThumb } from '../art/furniture';
 import { FURN_STYLES } from '../art/furn/kit';
@@ -179,10 +180,18 @@ export function openSettings(onReset: () => void): void {
     <div class="set-list">
       <button class="set-row" data-set="sound">${icon('sound')}<span>Sounds</span><i class="tog"></i></button>
       <button class="set-row" data-set="music">${icon('music')}<span>Music</span><i class="tog"></i></button>
+      <button class="set-row voice-row" data-voice>${icon('book')}<span>Story voice<small class="voice-name"></small></span><b class="try">${icon('sound')}Change</b></button>
+      <div class="tip">${icon('star')}<span>For the most natural story voice on iPad, open <b>Settings › Accessibility › Spoken Content › Voices › English</b> and download a <b>Premium</b> or <b>Enhanced</b> voice such as Ava or Zoe. Then pick it here.</span></div>
       <div class="tip">${icon('heart')}<span>To play like an app on iPad or iPhone, open this page in Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>.</span></div>
       <button class="set-row danger" data-reset>${icon('trash')}<span>Start a brand new game</span></button>
     </div>`);
-  const render = () => m.box.querySelectorAll<HTMLElement>('[data-set]').forEach((b) => b.classList.toggle('on', G.s.settings[b.dataset.set as 'sound' | 'music']));
+  const render = () => {
+    m.box.querySelectorAll<HTMLElement>('[data-set]').forEach((b) => b.classList.toggle('on', G.s.settings[b.dataset.set as 'sound' | 'music']));
+    const list = storyVoices();
+    const v = chosenVoice(G.s.settings.voice);
+    const at = v ? list.indexOf(v) : -1;
+    m.box.querySelector('.voice-name')!.textContent = list.length ? `${voiceLabel(v)} · ${at + 1} of ${list.length}` : 'Your device voice';
+  };
   m.box.addEventListener('click', (e) => {
     const t = e.target as Element;
     const b = t.closest('[data-set]') as HTMLElement | null;
@@ -191,6 +200,18 @@ export function openSettings(onReset: () => void): void {
       G.setSettings(k, !G.s.settings[k]);
       sound.tap();
       render();
+    }
+    if (t.closest('[data-voice]')) {
+      // try the next natural-sounding voice, and read a line with it
+      const list = storyVoices();
+      if (list.length) {
+        const cur = list.indexOf(chosenVoice(G.s.settings.voice)!);
+        G.s.settings.voice = list[(cur + 1) % list.length].voiceURI;
+        G.changed();
+      }
+      sound.tap();
+      render();
+      speakCalm('Once upon a time, in a cozy little town, a wonderful story was about to begin.', { enabled: true, voice: G.s.settings.voice });
     }
     if (t.closest('[data-reset]')) {
       confirmBox('Start over?', 'All your friends, rooms and coins will go back to the beginning. This cannot be undone.', `${icon('trash')}<span>Start over</span>`, '', () => {

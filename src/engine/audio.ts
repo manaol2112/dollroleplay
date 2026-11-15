@@ -359,3 +359,80 @@ export function stopMusic(): void {
   if (musicTimer !== null) window.clearInterval(musicTimer);
   musicTimer = null;
 }
+
+// ---------------- movie score: slow, warm chords under the story ----------------
+const SCORE = [
+  [48, 55, 60, 64, 67], // C
+  [45, 52, 57, 60, 64], // Am
+  [41, 48, 53, 57, 60], // F
+  [43, 50, 55, 59, 62], // G
+];
+let scoreTimer: number | null = null;
+let scoreGain: GainNode | null = null;
+
+/** One soft, slowly swelling pad note: two gently detuned voices through a warm filter. */
+function pad(c: AudioContext, dest: AudioNode, freq: number, at: number, dur: number, vol: number): void {
+  const t = c.currentTime + at;
+  const g = c.createGain();
+  const lp = c.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 1100;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + 1.6);
+  g.gain.setValueAtTime(vol, t + dur - 1.4);
+  g.gain.linearRampToValueAtTime(0.0001, t + dur);
+  lp.connect(g).connect(dest);
+  for (const [type, cents] of [['triangle', -6], ['sine', 7]] as const) {
+    const o = c.createOscillator();
+    o.type = type;
+    o.frequency.value = freq;
+    o.detune.value = cents;
+    o.connect(lp);
+    o.start(t);
+    o.stop(t + dur + 0.1);
+  }
+}
+
+/** A calm film soundtrack for the cinema; it fades in and out. Follows the Music setting. */
+export function movieScore(on: boolean): void {
+  const c = ac();
+  if (!c || !master) return;
+  if (!on) {
+    if (scoreTimer !== null) window.clearInterval(scoreTimer);
+    scoreTimer = null;
+    if (scoreGain) {
+      const g = scoreGain;
+      g.gain.setTargetAtTime(0.0001, c.currentTime, 0.5);
+      window.setTimeout(() => g.disconnect(), 3000);
+      scoreGain = null;
+    }
+    return;
+  }
+  if (scoreTimer !== null || !musicOn) return;
+  const g = c.createGain();
+  g.gain.value = 0.0001;
+  g.gain.setTargetAtTime(1, c.currentTime, 1.5);
+  g.connect(master);
+  scoreGain = g;
+  const barLen = 5.2;
+  let bar = 0;
+  let next = c.currentTime + 0.3;
+  const tick = () => {
+    if (!ctx || scoreGain !== g) return;
+    while (next < ctx.currentTime + 2) {
+      const chord = SCORE[bar % SCORE.length];
+      const at = next - ctx.currentTime;
+      chord.forEach((n, k) => pad(ctx!, g, noteFreq(n), at, barLen + 1.4, k === 0 ? 0.05 : 0.028));
+      // a few soft bell notes drifting on top
+      const top = chord.slice(2);
+      [0.9, 2.6, 3.9].forEach((dt, k) => {
+        if ((bar + k) % 3 === 2) return;
+        tone(noteFreq(top[(bar + k) % top.length] + 24), 2.2, { type: 'sine', vol: 0.035, at: at + dt, attack: 0.02, dest: g });
+      });
+      bar++;
+      next += barLen;
+    }
+  };
+  scoreTimer = window.setInterval(tick, 500);
+  tick();
+}
