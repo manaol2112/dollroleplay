@@ -46,10 +46,12 @@ pass, updates the live game.
     Ferris wheel goes round, and the coaster and water slide zoom them to the bottom.
 - **Salon nails:** paint, decorate and dry nails; the manicure shows on the doll.
 - **Sports:** basketball and soccer penalty kicks at the playground.
-- **Music:** piano, xylophone, guitar, harp, violin, flute, trumpet and drums at the theater.
+- **Music:** piano, xylophone, guitar, harp, violin, flute, trumpet and drums at the theater. The
+  **Song Book** has 58 guided songs (kids songs, holidays, classical, folk and world): pick one, tap
+  **Listen** to hear it, then follow the glowing keys. Every song works on every instrument that plays notes.
 - **Snacks:** drop food on a friend to feed them.
 - **School:** take a lesson for coins (pick 1st to 5th grade), or draw on the chalkboard.
-- **Theater:** play the piano freely, or pick a song and follow the glowing keys. The audience cheers.
+- **Theater:** play freely, or pick a song from the Song Book and follow the glowing keys. The audience cheers.
 - **Salon:** sit a friend in a salon chair and tap **Makeover**.
 - **Boutique:** spend coins on new clothes, hairstyles, furniture and wallpaper.
 - **Challenges** (the star button) pay coins. There is always a new one, plus a daily gift and a special

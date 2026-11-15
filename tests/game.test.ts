@@ -8,7 +8,7 @@ import { baseLook, randomLook, starterLooks } from '../src/data/looks';
 import { OLD_PARK_LAYOUT, PARK_LAYOUT, PLACES } from '../src/data/places';
 import { orbitAngle, orbitAt, orbitOf, orbitOpen } from '../src/art/furn/kit';
 import { makeQuestion } from '../src/data/quiz';
-import { BLACK_KEYS, SONGS, WHITE_KEYS } from '../src/data/songs';
+import { BLACK_KEYS, SONG_CATS, SONGS, WHITE_KEYS, songLevel } from '../src/data/songs';
 import {
   ACTIVE_CHALLENGES, activeChallenges, bump, buy, claim, claimDaily, dailyReady, isDone, isOwned, newState, parseState, priceOf, progressOf, seasonFor, START_COINS,
 } from '../src/data/state';
@@ -350,9 +350,22 @@ describe('school and music', () => {
     expect(avg(4)).toBeGreaterThan(avg(1) * 5);
   });
 
-  it('every song fits on the keyboard', () => {
-    const keys = new Set([...WHITE_KEYS, ...BLACK_KEYS]);
+  it('every song fits on the white keys, so every instrument can play it', () => {
+    const keys = new Set(WHITE_KEYS);
     for (const s of SONGS) for (const n of s.notes) expect(keys.has(n), `${s.id} ${n}`).toBe(true);
+    expect(BLACK_KEYS.length).toBe(10);
+  });
+
+  it('has a big song book: 56 songs in every group, with unique ids', () => {
+    expect(SONGS.length).toBeGreaterThanOrEqual(56);
+    expect(new Set(SONGS.map((x) => x.id)).size).toBe(SONGS.length);
+    for (const c of SONG_CATS) expect(SONGS.filter((x) => x.cat === c.id).length, c.id).toBeGreaterThanOrEqual(8);
+    for (const x of SONGS) {
+      expect(x.notes.length, x.id).toBeGreaterThanOrEqual(8);
+      expect([1, 2, 3]).toContain(songLevel(x));
+    }
+    // the first six keep their ids so saved stars stay
+    for (const id of ['hotcross', 'mary', 'twinkle', 'ode', 'row', 'jingle']) expect(SONGS.some((x) => x.id === id)).toBe(true);
   });
 
   it('picks the season from the date', () => {

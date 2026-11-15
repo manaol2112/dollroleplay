@@ -553,6 +553,33 @@ h2, h3 { margin: 0; font-weight: 700; }
 .itab.on { background: #fff; color: var(--ink); }
 .songs.hidden .chip { display: none; }
 .inst-tip { color: #fff; opacity: 0.85; font-size: 15px; padding: 8px 4px; }
+.piano-top .songs .chip { flex: none; }
+.chip.book-btn { background: linear-gradient(180deg, #ffd36b, #ffb63d); color: #6b3a00; }
+.chip.book-btn b, .sb-tabs .chip b { font-size: 13px; opacity: 0.75; }
+.chip.now-song { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.chip.listen { background: #7fe0b0; color: #1f5a44; }
+.piano-panel.demo .chip.listen { animation: pulse 0.9s ease-in-out infinite; }
+.songbook { position: absolute; left: 0; right: 0; bottom: calc(100% + 10px); max-height: min(60vh, 520px); display: none; flex-direction: column; gap: 8px; background: #fff8fc; border-radius: 26px; box-shadow: var(--shadow); padding: 12px 14px; }
+.songbook.open { display: flex; animation: fadeUp 0.2s ease-out; }
+.sb-head { display: flex; align-items: center; gap: 8px; color: var(--pink-d); }
+.sb-head > svg { width: 34px; height: 34px; }
+.sb-head h3 { margin: 0; font-size: 24px; flex: 1; }
+.sb-count { display: flex; align-items: center; gap: 4px; font-weight: 700; color: #b07a10; }
+.sb-count svg { width: 26px; height: 26px; }
+.sb-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: none; }
+.sb-tabs::-webkit-scrollbar { display: none; }
+.sb-tabs .chip { flex: none; box-shadow: none; background: #ffe6f1; }
+.sb-tabs .chip.on { background: linear-gradient(180deg, #ff9ec7, #ff6f9f); color: #fff; }
+.sb-grid { overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; padding: 2px 2px 6px; min-height: 0; }
+.song-card { display: flex; align-items: center; gap: 8px; min-height: 58px; padding: 8px 12px; border-radius: 18px; background: #fff; box-shadow: 0 3px 0 #f2d7e6; text-align: left; color: var(--ink); font-weight: 600; font-size: 16px; }
+.song-card > svg { width: 28px; height: 28px; flex: none; }
+.song-card .sn { flex: 1; min-width: 0; line-height: 1.15; }
+.song-card.done { background: #fff6d6; box-shadow: 0 3px 0 #f2dd9a; }
+.song-card.on { outline: 3px solid var(--pink); }
+.song-card:active { transform: scale(0.96); }
+.song-card .lv { display: flex; gap: 3px; flex: none; }
+.song-card .lv i { width: 9px; height: 9px; border-radius: 50%; background: #ff9ec7; }
+.song-card .lv i.off { background: #f0e4ec; }
 .keys .down { filter: brightness(1.15); }
 /* xylophone */
 .inst-xylophone .xy-rail { position: absolute; left: 0; right: 0; height: 10px; border-radius: 5px; background: #c98a5a; z-index: 0; }

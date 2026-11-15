@@ -1,6 +1,7 @@
 // Challenges that pay coins. Four are active at a time, in order; when the list runs out, endless
 // repeatable ones take over so there is always something to earn.
 import { FURN_BY_ID } from '../art/furniture';
+import { SONGS, SONG_BY_ID } from './songs';
 import { WEAR_BY_ID } from '../art/wear';
 import type { Season } from '../types';
 import type { GameState } from './state';
@@ -50,7 +51,10 @@ export const CHALLENGES: ChallengeDef[] = [
   { id: 'friends4', text: 'Have 6 friends in your town', icon: 'plus', reward: 80, target: 6, check: (s) => s.dolls.length },
   { id: 'buy5', text: 'Buy 5 new things', icon: 'bag', reward: 80, target: 5, stat: 'buy' },
   { id: 'feed10', text: 'Feed friends 10 snacks', icon: 'cake', reward: 50, target: 10, stat: 'feed' },
-  { id: 'allSongs', text: 'Perform every song', icon: 'star', reward: 150, target: 6, check: (s) => s.songsDone.length },
+  { id: 'allSongs', text: 'Perform 6 different songs', icon: 'star', reward: 150, target: 6, check: (s) => s.songsDone.length },
+  { id: 'songs20', text: 'Perform 20 different songs', icon: 'note', reward: 300, target: 20, check: (s) => s.songsDone.length },
+  { id: 'songsHoliday', text: 'Play every holiday song', icon: 'gift', reward: 150, target: SONGS.filter((x) => x.cat === 'holiday').length, check: (s) => s.songsDone.filter((id) => SONG_BY_ID[id]?.cat === 'holiday').length },
+  { id: 'songsAll', text: 'Play every song in the song book', icon: 'star', reward: 800, target: SONGS.length, check: (s) => s.songsDone.filter((id) => SONG_BY_ID[id]).length },
   { id: 'manicure1', text: 'Get a manicure at the Salon', icon: 'makeup', reward: 30, target: 1, stat: 'manicure' },
   { id: 'basket5', text: 'Score 5 baskets at the Playground', icon: 'toy', reward: 40, target: 5, stat: 'basket' },
   { id: 'goal5', text: 'Kick 5 soccer goals', icon: 'star', reward: 40, target: 5, stat: 'goal' },

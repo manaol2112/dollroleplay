@@ -6,7 +6,7 @@ import { FLOORS, WALLS } from '../art/scenes';
 import { WEAR_BY_ID, flowerG, heartD, starD, wearFor } from '../art/wear';
 import { wornOf } from '../data/looks';
 import { GRADES, GRADE_NAME, type Grade, type Question, type Visual, coinsFor, makeQuestion, type Pic } from '../data/quiz';
-import { BLACK_KEYS, SONGS, WHITE_KEYS, type Song } from '../data/songs';
+import { BLACK_KEYS, SONG_CATS, SONGS, WHITE_KEYS, songLevel, type Song, type SongCat } from '../data/songs';
 import { activeChallenges, claim, claimDaily, dailyReady, DAILY_GIFT, isDone, progressOf } from '../data/state';
 import { CHORDS, type Drum, type Instrument, drum, duckMusic, playNote, sound, strum } from '../engine/audio';
 import { burst, celebrate } from '../engine/particles';
@@ -425,7 +425,10 @@ export function openPiano(host: HTMLElement, hooks: PianoHooks): () => void {
   let pos = 0;
   let notes = 0;
   let chord = 'C';
-  panel.innerHTML = `<div class="inst-tabs"></div><div class="piano-top"><div class="songs"></div><button class="round-btn" data-pclose>${icon('close')}</button></div><div class="keys"></div>`;
+  let bookCat: SongCat = 'kids';
+  let demoT = 0;
+  panel.innerHTML = `<div class="songbook"></div><div class="inst-tabs"></div><div class="piano-top"><div class="songs"></div><button class="round-btn" data-pclose>${icon('close')}</button></div><div class="keys"></div>`;
+  const book = panel.querySelector('.songbook') as HTMLDivElement;
   host.appendChild(panel);
   requestAnimationFrame(() => panel.classList.add('show'));
   const keysEl = panel.querySelector('.keys') as HTMLDivElement;
@@ -459,10 +462,56 @@ export function openPiano(host: HTMLElement, hooks: PianoHooks): () => void {
     renderSongs();
     glow();
   };
+  const doneCount = () => SONGS.filter((x) => G.s.songsDone.includes(x.id)).length;
   const renderSongs = () => {
     panel.querySelector('.songs')!.innerHTML = melodic()
-      ? `<button class="chip${!song ? ' on' : ''}" data-song="">${icon('music')}Free play</button>` + SONGS.map((s) => `<button class="chip${song?.id === s.id ? ' on' : ''}" data-song="${s.id}">${G.s.songsDone.includes(s.id) ? icon('star') : icon('note')}${esc(s.name)}</button>`).join('')
+      ? `<button class="chip${!song ? ' on' : ''}" data-song="">${icon('music')}Free play</button>` +
+        `<button class="chip book-btn" data-book>${icon('book')}Song Book <b>${doneCount()}/${SONGS.length}</b></button>` +
+        (song ? `<span class="chip on now-song">${icon('note')}${esc(song.name)}</span><button class="chip listen" data-listen>${icon('sound')}Listen</button>` : '')
       : `<span class="inst-tip">${inst === 'guitar' ? 'Pick a chord, then swipe the strings!' : 'Tap the drums to make a beat!'}</span>`;
+    if (book.classList.contains('open')) renderBook();
+  };
+  // The song book: every song by group, with stars for how tricky it is and a gold star once played.
+  const renderBook = () => {
+    const list = SONGS.filter((x) => x.cat === bookCat);
+    book.innerHTML = `<div class="sb-head">${icon('book')}<h3>Song Book</h3><span class="sb-count">${icon('star')}${doneCount()} / ${SONGS.length}</span><button class="round-btn" data-bookclose>${icon('close')}</button></div>
+      <div class="sb-tabs">${SONG_CATS.map((c) => `<button class="chip${c.id === bookCat ? ' on' : ''}" data-bookcat="${c.id}">${icon(c.icon)}${c.name} <b>${SONGS.filter((x) => x.cat === c.id && G.s.songsDone.includes(x.id)).length}/${SONGS.filter((x) => x.cat === c.id).length}</b></button>`).join('')}</div>
+      <div class="sb-grid">${list.map((x) => {
+        const lv = songLevel(x);
+        const done = G.s.songsDone.includes(x.id);
+        return `<button class="song-card${done ? ' done' : ''}${song?.id === x.id ? ' on' : ''}" data-song="${x.id}">${done ? icon('star') : icon('note')}<span class="sn">${esc(x.name)}</span><span class="lv" title="${['Easy', 'Medium', 'Tricky'][lv - 1]}">${[1, 2, 3].map((k) => `<i class="${k <= lv ? '' : 'off'}"></i>`).join('')}</span></button>`;
+      }).join('')}</div>`;
+  };
+  const openBook = (open: boolean) => {
+    if (open) {
+      if (song) bookCat = song.cat;
+      renderBook();
+      // fit between the top bar and the instrument panel
+      const room = panel.getBoundingClientRect().top - 86;
+      book.style.maxHeight = `${Math.max(220, Math.min(560, room))}px`;
+    }
+    book.classList.toggle('open', open);
+  };
+  // Listen: plays the whole song once, lighting each key, so the tune is easy to follow.
+  const stopDemo = () => {
+    window.clearTimeout(demoT);
+    demoT = 0;
+    panel.classList.remove('demo');
+  };
+  const demo = () => {
+    if (!song) return;
+    stopDemo();
+    const tuneNotes = song.notes;
+    let i = 0;
+    panel.classList.add('demo');
+    const step = () => {
+      if (!song || i >= tuneNotes.length) return stopDemo();
+      const m = tuneNotes[i++];
+      playNote(inst, m);
+      flash(keysEl.querySelector(`[data-midi="${m}"]`), false);
+      demoT = window.setTimeout(step, 430);
+    };
+    step();
   };
   const glow = () => {
     keysEl.querySelectorAll('.next').forEach((k) => k.classList.remove('next'));
@@ -483,6 +532,7 @@ export function openPiano(host: HTMLElement, hooks: PianoHooks): () => void {
     hooks.onNote();
   };
   const press = (midi: number, keyEl: Element | null) => {
+    if (demoT) stopDemo();
     playNote(inst, midi);
     counted();
     flash(keyEl);
@@ -493,7 +543,10 @@ export function openPiano(host: HTMLElement, hooks: PianoHooks): () => void {
           const done = song;
           song = null;
           pos = 0;
-          window.setTimeout(() => hooks.onSongDone(done), 300);
+          window.setTimeout(() => {
+            hooks.onSongDone(done);
+            renderSongs();
+          }, 300);
           renderSongs();
         }
       }
@@ -555,8 +608,31 @@ export function openPiano(host: HTMLElement, hooks: PianoHooks): () => void {
   panel.addEventListener('click', (e) => {
     const t = e.target as Element;
     // Only the tab buttons: the panel itself also carries data-inst (for styling).
+    if (t.closest('[data-book]')) {
+      sound.tap();
+      openBook(!book.classList.contains('open'));
+      return;
+    }
+    if (t.closest('[data-bookclose]')) {
+      sound.tap();
+      openBook(false);
+      return;
+    }
+    const bc = t.closest('[data-bookcat]') as HTMLElement | null;
+    if (bc) {
+      bookCat = bc.dataset.bookcat as SongCat;
+      sound.tap();
+      renderBook();
+      book.querySelector('.sb-grid')?.scrollTo(0, 0);
+      return;
+    }
+    if (t.closest('[data-listen]')) {
+      demo();
+      return;
+    }
     const it = t.closest('.itab') as HTMLElement | null;
     if (it) {
+      stopDemo();
       inst = it.dataset.inst as Instrument;
       lastInstrument = inst;
       if (!melodic()) song = null;
@@ -569,6 +645,8 @@ export function openPiano(host: HTMLElement, hooks: PianoHooks): () => void {
     }
     const s = t.closest('[data-song]') as HTMLElement | null;
     if (s) {
+      stopDemo();
+      openBook(false);
       song = SONGS.find((x) => x.id === s.dataset.song) ?? null;
       pos = 0;
       sound.tap();
@@ -600,6 +678,7 @@ export function openPiano(host: HTMLElement, hooks: PianoHooks): () => void {
     }
   }, 1500);
   function close(): void {
+    stopDemo();
     if (notes) G.bump('pianoNote', notes);
     notes = 0;
     window.clearInterval(flushT);
