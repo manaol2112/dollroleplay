@@ -55,8 +55,8 @@ export function confirmBox(title: string, text: string, yes: string, art = '', o
   });
 }
 
-export function promptName(current: string, onDone: (name: string) => void): void {
-  const m = openModal('confirm', `<h2>Name your friend</h2><input class="name-input" maxlength="14" value="${esc(current)}" autocomplete="off" spellcheck="false"/><div class="row"><button class="btn ghost" data-close>Cancel</button><button class="btn primary" data-yes>${icon('check')}<span>Save</span></button></div>`);
+export function promptName(current: string, onDone: (name: string) => void, title = 'Name your friend'): void {
+  const m = openModal('confirm', `<h2>${esc(title)}</h2><input class="name-input" maxlength="14" value="${esc(current)}" autocomplete="off" spellcheck="false"/><div class="row"><button class="btn ghost" data-close>Cancel</button><button class="btn primary" data-yes>${icon('check')}<span>Save</span></button></div>`);
   const input = m.box.querySelector('input')!;
   window.setTimeout(() => {
     input.focus();

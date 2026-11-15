@@ -4,12 +4,48 @@ import { burst } from './engine/particles';
 import { activeChallenges, bump as bumpStat, buy as buyItem, isDone, isOwned, newState, parseState, priceOf, type GameState, type ItemKey } from './data/state';
 import { challengeById } from './data/challenges';
 import { icon } from './ui/icons';
+import type { Look } from './types';
 
 const KEY = 'dollroleplay.save.v1';
+const REG_KEY = 'dollroleplay.profiles';
+export const MAX_PROFILES = 4;
+export const PROFILE_COLORS = ['#ff7eb6', '#7cc8ff', '#c99bff', '#7fe0b0', '#ffb347', '#ffd36b'];
 
-function load(): GameState {
+/** A player: each kid gets their own town, friends, coins and challenges. */
+export interface Profile {
+  id: string;
+  name: string;
+  color: string;
+  /** The friend they picked as themselves (else their first friend), shown on the "Who's playing?" card. */
+  faceId?: string;
+  face?: Look;
+}
+interface Registry {
+  list: Profile[];
+  current: string;
+}
+/** Player 1 keeps the original save key, so saves from before profiles carry on. */
+const saveKey = (id: string) => (id === 'p1' ? KEY : `${KEY}.${id}`);
+
+function loadReg(): Registry {
   try {
-    const s = parseState(localStorage.getItem(KEY));
+    const r = JSON.parse(localStorage.getItem(REG_KEY) ?? 'null') as Registry | null;
+    if (r && Array.isArray(r.list) && r.list.length) {
+      r.list = r.list.filter((p) => p && typeof p.id === 'string' && typeof p.name === 'string').slice(0, MAX_PROFILES);
+      if (r.list.length) {
+        if (!r.list.some((p) => p.id === r.current)) r.current = r.list[0].id;
+        return r;
+      }
+    }
+  } catch {
+    /* fall through */
+  }
+  return { list: [{ id: 'p1', name: 'Player 1', color: PROFILE_COLORS[0] }], current: 'p1' };
+}
+
+function load(id: string): GameState {
+  try {
+    const s = parseState(localStorage.getItem(saveKey(id)));
     if (s) return s;
   } catch {
     /* storage blocked: start fresh */
@@ -20,13 +56,15 @@ function load(): GameState {
 type Listener = () => void;
 
 class Game {
-  s: GameState = load();
+  private reg: Registry = loadReg();
+  s: GameState = load(this.reg.current);
   private listeners = new Set<Listener>();
   private saveTimer: number | null = null;
   private announced = new Set<string>();
 
   constructor() {
     for (const c of activeChallenges(this.s)) if (isDone(this.s, c)) this.announced.add(c.id);
+    if (!this.profile.face && this.s.dolls[0]) this.profile.face = this.s.dolls[0].look;
     setSound(this.s.settings.sound);
     window.addEventListener('pagehide', () => this.flush());
     document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && this.flush());
@@ -49,15 +87,89 @@ class Game {
     if (this.saveTimer !== null) clearTimeout(this.saveTimer);
     this.saveTimer = null;
     try {
-      localStorage.setItem(KEY, JSON.stringify(this.s));
+      localStorage.setItem(saveKey(this.reg.current), JSON.stringify(this.s));
+      const me = this.profile;
+      const d = this.s.dolls.find((x) => x.id === me?.faceId) ?? this.s.dolls[0];
+      if (me && d) me.face = d.look;
+      localStorage.setItem(REG_KEY, JSON.stringify(this.reg));
     } catch {
       /* storage full or blocked: keep playing */
     }
   }
 
+  // ---------------- players ----------------
+  get profiles(): Profile[] {
+    return this.reg.list;
+  }
+
+  get profile(): Profile {
+    return this.reg.list.find((p) => p.id === this.reg.current) ?? this.reg.list[0];
+  }
+
+  /** Saves this player's town and loads another player's. */
+  switchTo(id: string): void {
+    if (id === this.reg.current || !this.reg.list.some((p) => p.id === id)) return;
+    this.flush();
+    this.reg.current = id;
+    this.s = load(id);
+    this.announced.clear();
+    for (const c of activeChallenges(this.s)) if (isDone(this.s, c)) this.announced.add(c.id);
+    setSound(this.s.settings.sound);
+    setMusic(this.s.settings.music);
+    this.flush();
+    for (const fn of this.listeners) fn();
+  }
+
+  addProfile(name: string): Profile | null {
+    if (this.reg.list.length >= MAX_PROFILES) return null;
+    let n = this.reg.list.length + 1;
+    while (this.reg.list.some((p) => p.id === `p${n}`)) n++;
+    const used = new Set(this.reg.list.map((p) => p.color));
+    const p: Profile = { id: `p${n}`, name: name.trim() || `Player ${n}`, color: PROFILE_COLORS.find((c) => !used.has(c)) ?? PROFILE_COLORS[n % PROFILE_COLORS.length] };
+    this.reg.list.push(p);
+    try {
+      localStorage.removeItem(saveKey(p.id));
+    } catch {
+      /* ignore */
+    }
+    this.flush();
+    return p;
+  }
+
+  /** Which friend is "me" for the current player. */
+  setFace(dollId: string): void {
+    this.profile.faceId = dollId;
+    this.flush();
+  }
+
+  renameProfile(id: string, name: string): void {
+    const p = this.reg.list.find((x) => x.id === id);
+    if (!p || !name.trim()) return;
+    p.name = name.trim().slice(0, 16);
+    this.flush();
+  }
+
+  /** Removes a player and their town for good (there is always at least one player). */
+  deleteProfile(id: string): void {
+    if (this.reg.list.length <= 1) return;
+    if (id === this.reg.current) this.switchTo(this.reg.list.find((p) => p.id !== id)!.id);
+    this.reg.list = this.reg.list.filter((p) => p.id !== id);
+    try {
+      localStorage.removeItem(saveKey(id));
+    } catch {
+      /* ignore */
+    }
+    this.flush();
+  }
+
+  /** Set by the app: hears every counted action (used to hand out stickers). */
+  onBump: ((stat: string, first: boolean) => void) | null = null;
+
   bump(stat: string, n = 1): void {
+    const first = !this.s.stats[stat];
     bumpStat(this.s, stat, n);
     this.changed();
+    this.onBump?.(stat, first);
   }
 
   owns = (key: ItemKey) => isOwned(this.s, key);

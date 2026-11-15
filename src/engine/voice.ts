@@ -72,7 +72,7 @@ let run = 0;
  * Reads text aloud calmly, a sentence at a time. onEnd fires once when it's done (or right away
  * if speech isn't available), and never waits forever if the browser forgets to say it finished.
  */
-export function speakCalm(text: string, opts: { voice?: string; enabled: boolean; rate?: number; onEnd?: () => void }): void {
+export function speakCalm(text: string, opts: { voice?: string; enabled: boolean; rate?: number; onEnd?: () => void; onWord?: (charIndex: number) => void }): void {
   const ss = window.speechSynthesis;
   const my = ++run;
   let done = false;
@@ -88,12 +88,44 @@ export function speakCalm(text: string, opts: { voice?: string; enabled: boolean
   ss.cancel();
   const v = chosenVoice(opts.voice);
   const parts = sentences(text);
+  // where each sentence starts in the full text, so word positions can be reported for the whole page
+  const starts: number[] = [];
+  let cursor = 0;
+  for (const p of parts) {
+    const at = text.indexOf(p, cursor);
+    starts.push(at >= 0 ? at : cursor);
+    cursor = (at >= 0 ? at : cursor) + p.length;
+  }
   let i = 0;
   const next = () => {
     if (my !== run) return;
     if (i >= parts.length) return end();
+    const base = starts[i];
     const part = parts[i++];
     const u = new SpeechSynthesisUtterance(part);
+    // Word highlighting: use the voice's word events, or estimate the timing if it has none.
+    let heard = false;
+    let est: number[] = [];
+    if (opts.onWord) {
+      const onWord = opts.onWord;
+      u.onboundary = (e) => {
+        if (my !== run || (e.name && e.name !== 'word')) return;
+        heard = true;
+        est.forEach((t) => window.clearTimeout(t));
+        est = [];
+        onWord(base + e.charIndex);
+      };
+      u.onstart = () => {
+        if (heard) return;
+        const msPerChar = 62 / (opts.rate ?? 0.88);
+        const re = /\S+/g;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(part))) {
+          const at = m.index;
+          est.push(window.setTimeout(() => !heard && my === run && onWord(base + at), at * msPerChar));
+        }
+      };
+    }
     if (v) {
       u.voice = v;
       u.lang = v.lang;
@@ -105,6 +137,7 @@ export function speakCalm(text: string, opts: { voice?: string; enabled: boolean
     const after = () => {
       if (fired) return;
       fired = true;
+      est.forEach((t) => window.clearTimeout(t));
       window.clearTimeout(guard);
       // a calm breath between sentences
       window.setTimeout(next, /[!?]$/.test(part) ? 380 : 300);

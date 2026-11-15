@@ -49,6 +49,10 @@ export const TOWN_PLACE_LOOK: Record<string, TownPlaceLook> = {
     sign: 'Grand Hotel', signColor: '#c98a1e', wall: 'wall-damask-0', floor: 'floor-marble-pink', curtain: '#e0457b', windows: [[220, 120, 220, 250], [1160, 120, 220, 250]],
     extra: () => ceilingLights(3),
   },
+  hotelroom: {
+    sign: 'Room 7', signColor: '#c98a1e', wall: 'wall-damask-0', floor: 'floor-carpet-3', curtain: '#e0457b', windows: [[560, 110, 480, 260]],
+    extra: () => R(1250, 160, 150, 110, 12, '#fff8e6') + R(1262, 172, 126, 86, 8, '#ffd9e8') + T(1325, 226, '♥', 40, '#ff7eb6'),
+  },
   grocery: {
     sign: 'Grocery Shop', signColor: '#3fbf8f', wall: 'wall-tiles-2', floor: 'floor-check-0', curtain: '#7fd8c0', windows: [[1220, 120, 220, 220]],
     extra: () => {

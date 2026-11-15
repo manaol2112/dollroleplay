@@ -1,4 +1,5 @@
 // Pop-up panels: the boutique shop, challenges, settings, the season picker, school lessons and the piano.
+import { awardSticker } from './stickers';
 import { chosenVoice, speakCalm, storyVoices, voiceLabel } from '../engine/voice';
 import { HAIR } from '../art/doll';
 import { FURNITURE, FURN_BY_ID, type FurnCat, furnThumb } from '../art/furniture';
@@ -159,6 +160,7 @@ export function openChallenges(): void {
         coinFly(got, from);
         G.changed();
         render();
+        window.setTimeout(() => awardSticker('Challenge complete!'), 900);
       }
     }
     if (d) {
@@ -175,7 +177,7 @@ export function openChallenges(): void {
 }
 
 // ---------------- settings ----------------
-export function openSettings(onReset: () => void): void {
+export function openSettings(onReset: () => void, onSwitch?: () => void): void {
   const m = openModal('settings', `<div class="shop-head"><h2>${icon('gear')}Settings</h2><button class="round-btn" data-close>${icon('close')}</button></div>
     <div class="set-list">
       <button class="set-row" data-set="sound">${icon('sound')}<span>Sounds</span><i class="tog"></i></button>
@@ -183,7 +185,9 @@ export function openSettings(onReset: () => void): void {
       <button class="set-row voice-row" data-voice>${icon('book')}<span>Story voice<small class="voice-name"></small></span><b class="try">${icon('sound')}Change</b></button>
       <div class="tip">${icon('star')}<span>For the most natural story voice on iPad, open <b>Settings › Accessibility › Spoken Content › Voices › English</b> and download a <b>Premium</b> or <b>Enhanced</b> voice such as Ava or Zoe. Then pick it here.</span></div>
       <div class="tip">${icon('heart')}<span>To play like an app on iPad or iPhone, open this page in Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>.</span></div>
-      <button class="set-row danger" data-reset>${icon('trash')}<span>Start a brand new game</span></button>
+      <button class="set-row" data-switch>${icon('heart')}<span>Switch player<small>Playing as ${esc(G.profile.name)}</small></span></button>
+      <button class="set-row danger" data-reset>${icon('trash')}<span>Start a brand new game<small>Only ${esc(G.profile.name)}'s town starts over</small></span></button>
+      ${G.profiles.length > 1 ? `<button class="set-row danger" data-remove>${icon('trash')}<span>Remove ${esc(G.profile.name)}</span></button>` : ''}
     </div>`);
   const render = () => {
     m.box.querySelectorAll<HTMLElement>('[data-set]').forEach((b) => b.classList.toggle('on', G.s.settings[b.dataset.set as 'sound' | 'music']));
@@ -212,6 +216,17 @@ export function openSettings(onReset: () => void): void {
       sound.tap();
       render();
       speakCalm('Once upon a time, in a cozy little town, a wonderful story was about to begin.', { enabled: true, voice: G.s.settings.voice });
+    }
+    if (t.closest('[data-switch]')) {
+      m.close();
+      onSwitch?.();
+    }
+    if (t.closest('[data-remove]')) {
+      confirmBox(`Remove ${esc(G.profile.name)}?`, `${esc(G.profile.name)}'s friends, rooms and coins will be gone for good.`, `${icon('trash')}<span>Remove</span>`, '', () => {
+        G.deleteProfile(G.profile.id);
+        m.close();
+        onSwitch?.();
+      }, 'Keep');
     }
     if (t.closest('[data-reset]')) {
       confirmBox('Start over?', 'All your friends, rooms and coins will go back to the beginning. This cannot be undone.', `${icon('trash')}<span>Start over</span>`, '', () => {

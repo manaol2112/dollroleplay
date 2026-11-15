@@ -3,7 +3,7 @@ import { HAIR_BY_ID } from '../art/doll';
 import { FURN_BY_ID } from '../art/furniture';
 import { FLOOR_BY_ID, WALL_BY_ID } from '../art/scenes';
 import { WEAR_BY_ID } from '../art/wear';
-import { SEASONS, type Doll, type PlacedItem, type SceneState, type Season } from '../types';
+import { SEASONS, type Doll, type Pet, type PlacedItem, type SceneState, type Season } from '../types';
 import { CHALLENGES, SEASON_CHALLENGES, challengeById, repeatChallenge, type ChallengeDef } from './challenges';
 import { starterLooks } from './looks';
 import { OLD_PARK_LAYOUT, PARK_LAYOUT, PLACES, designable, indoorStyle } from './places';
@@ -32,6 +32,16 @@ export interface GameState {
   grade?: number;
   /** Books read and movies watched, as 'book:<id>' / 'movie:<id>'. */
   storiesDone?: string[];
+  /** Adopted pets. */
+  pets: Pet[];
+  /** Sticker ids collected (see art/stickers), in the order they were found; may repeat. */
+  stickers: string[];
+  /** Groceries at home: food id -> how many are in the fridge. */
+  pantry: Record<string, number>;
+  /** Day (YYYY-MM-DD) the daily surprise box was last opened. */
+  surpriseDay?: string;
+  /** Stickers stuck on the free scrapbook page: sticker id, position (0-1 of the page), turn and size. */
+  stickerPage?: { id: string; x: number; y: number; r: number; s: number }[];
 }
 
 export const START_COINS = 120;
@@ -59,7 +69,7 @@ export function freshScene(s: GameState, placeId: string): SceneState {
 export function newState(now = new Date()): GameState {
   const s: GameState = {
     v: 1, coins: START_COINS, owned: [], dolls: [], scenes: {}, season: seasonFor(now), stats: {}, visited: [], seasonsSeen: [seasonFor(now)], songsDone: [],
-    ch: { list: [], base: {}, claimed: [], next: 0, rep: 0 }, daily: '', settings: { sound: true, music: true }, nextUid: 1, seenIntro: false, boysAdded: true, parkV: 1,
+    ch: { list: [], base: {}, claimed: [], next: 0, rep: 0 }, daily: '', settings: { sound: true, music: true }, nextUid: 1, seenIntro: false, boysAdded: true, parkV: 1, pets: [], stickers: [], pantry: {},
   };
   // Lily, Mia, Rosie and Mom keep ids d1-d4 from before boys existed; Leo and Dad are d5 and d6.
   const spots: Record<string, [string, number, number, string]> = {
@@ -114,7 +124,9 @@ export function parseState(json: string | null): GameState | null {
     if (!sc || !Array.isArray(sc.items)) s.scenes[id] = freshScene(s, id);
     else sc.items = sc.items.filter((it) => FURN_BY_ID[it.def]);
   }
-  for (const k of ['visited', 'seasonsSeen', 'songsDone'] as const) if (!Array.isArray(s[k])) (s as unknown as Record<string, unknown>)[k] = [];
+  for (const k of ['visited', 'seasonsSeen', 'songsDone', 'pets', 'stickers'] as const) if (!Array.isArray(s[k])) (s as unknown as Record<string, unknown>)[k] = [];
+  s.pets = s.pets.filter((p) => p && p.look && typeof p.look.kind === 'string').map((p) => ({ ...p, look: { ...p.look, acc: { ...(p.look.acc ?? {}) } }, place: p.place && PLACES[p.place] ? p.place : null, seat: p.seat ?? null }));
+  if (!s.pantry || typeof s.pantry !== 'object') s.pantry = {};
   if (!s.stats || typeof s.stats !== 'object') s.stats = {};
   if (s.storiesDone && !Array.isArray(s.storiesDone)) s.storiesDone = [];
   const maxUid = Math.max(0, ...Object.values(s.scenes).flatMap((sc) => sc.items.map((i) => i.uid)));

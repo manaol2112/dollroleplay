@@ -46,6 +46,15 @@ export interface Seat {
   i: number;
 }
 
+/** How a friend (or pet) is feeling, 0 (needs it now) to 100 (all good). t is when it was last updated (ms). */
+export interface Needs {
+  food: number;
+  sleep: number;
+  clean: number;
+  fun: number;
+  t: number;
+}
+
 export interface Doll {
   id: string;
   name: string;
@@ -54,6 +63,33 @@ export interface Doll {
   x: number;
   y: number;
   seat: Seat | null;
+  needs?: Needs;
+}
+
+export type PetSlot = 'head' | 'neck' | 'body' | 'face';
+/** A pet's look: what kind of animal, fur colors and markings, eyes, and what it wears. */
+export interface PetLook {
+  /** e.g. 'puppy', 'kitten', 'bunny' (see PET_KINDS in art/pets). */
+  kind: string;
+  fur: string;
+  /** Second fur color for markings, ears, tail tip... */
+  fur2: string;
+  /** Markings id (see PET_PATTERNS in art/pets), e.g. 'plain', 'spots', 'patch'. */
+  pattern: string;
+  eyes: string;
+  acc: Partial<Record<PetSlot, { id: string; color: string }>>;
+}
+
+export interface Pet {
+  id: string;
+  name: string;
+  look: PetLook;
+  place: string | null;
+  x: number;
+  y: number;
+  /** Sitting in a pet bed or on furniture, like a friend's seat. */
+  seat: Seat | null;
+  needs?: Needs;
 }
 
 export interface PlacedItem {
@@ -84,4 +120,6 @@ export interface SceneState {
   trim?: string;
   curtain?: string;
   chalk?: Stroke[];
+  /** Night time in this room: dark windows, stars, lamps glowing. */
+  night?: boolean;
 }

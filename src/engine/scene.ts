@@ -5,10 +5,14 @@ import { shadow } from '../art/defs';
 import { type Expr, dollHeight, hipHeight, renderDoll } from '../art/doll';
 import { FURN_BY_ID, artCtx, type FurnDef, type SeatDef } from '../art/furniture';
 import { orbitAngle, orbitAt, orbitOf, orbitOpen, orbitStill } from '../art/furn/kit';
+import { NEED_KEYS, NEED_TEXT, fill, fullNeeds, neediest, tickNeeds, type NeedKey } from '../data/needs';
+const fullNeedsNow = () => fullNeeds(Date.now());
 import { CHALK_BOX, audience, butterflies, roomLight, theaterCurtains } from '../art/scenes';
 import type { PlaceDef } from '../data/places';
 import { G, toast } from '../game';
-import type { Doll, PlacedItem, SceneState, Stroke } from '../types';
+import type { Doll, Pet, PlacedItem, SceneState, Stroke } from '../types';
+import { petHeight, renderPet } from '../art/pets';
+import { tickPetNeeds } from '../data/pets';
 import { icon } from '../ui/icons';
 import { pianoNote, sound } from './audio';
 import { burst } from './particles';
@@ -21,6 +25,8 @@ const MAX_ITEMS = 70;
 
 export interface SceneHooks {
   openCloset(dollId: string): void;
+  /** Tapping a pet: open its care screen. */
+  openPet?(petId: string): void;
   trayRect(): DOMRect | null;
   onDragState(dragging: boolean): void;
 }
@@ -28,6 +34,7 @@ export interface SceneHooks {
 type Drag =
   | { kind: 'item'; it: PlacedItem; ox: number; oy: number; started: boolean; sx: number; sy: number; fromTray: boolean; deps: { it: PlacedItem; dx: number; dy: number }[] }
   | { kind: 'doll'; d: Doll; ox: number; oy: number; started: boolean; sx: number; sy: number; fromTray: boolean }
+  | { kind: 'pet'; p: Pet; ox: number; oy: number; started: boolean; sx: number; sy: number; fromTray: boolean }
   | { kind: 'chalk'; stroke: Stroke; path: SVGPathElement };
 
 function tween(ms: number, step: (t: number) => void, done?: () => void): void {
@@ -39,6 +46,20 @@ function tween(ms: number, step: (t: number) => void, done?: () => void): void {
     else done?.();
   };
   requestAnimationFrame(run);
+}
+
+/** Little pictures for each need (drawn around 0,0, about 40 across). */
+function needIcon(k: NeedKey): string {
+  if (k === 'food') return '<path d="M-14 -2 L14 -2 L9 16 L-9 16Z" fill="#ffb3c7"/><path d="M-16 -2 Q-16 -18 0 -18 Q16 -18 16 -2Z" fill="#fff3e0"/><circle cx="0" cy="-20" r="5" fill="#ff4f6d"/><circle cx="-6" cy="-9" r="2" fill="#ff7eb6"/><circle cx="5" cy="-11" r="2" fill="#7cc8ff"/>';
+  if (k === 'sleep') return '<path d="M8 -16 A16 16 0 1 0 14 8 A12 12 0 1 1 8 -16Z" fill="#ffd36b"/><text x="10" y="-6" font-family="Fredoka, sans-serif" font-weight="700" font-size="14" fill="#9b6bff">z</text>';
+  if (k === 'clean') return '<circle cx="-6" cy="4" r="11" fill="#bfe8ff" stroke="#7cc8ff" stroke-width="2"/><circle cx="9" cy="-8" r="7" fill="#e6f6ff" stroke="#7cc8ff" stroke-width="2"/><circle cx="10" cy="10" r="4" fill="#e6f6ff" stroke="#7cc8ff" stroke-width="2"/><circle cx="-10" cy="0" r="3" fill="#fff"/>';
+  return '<circle cx="0" cy="0" r="16" fill="#ff9ec7"/><path d="M-16 0 Q0 -8 16 0 M-16 0 Q0 8 16 0 M0 -16 L0 16" stroke="#fff" stroke-width="3" fill="none"/>';
+}
+/** A thought bubble with what a friend would like. */
+function needBubble(k: NeedKey, x: number, y: number): string {
+  return `<g class="need-bubble" transform="translate(${x} ${y}) scale(1.45)"><circle cx="-34" cy="38" r="7" fill="#fff" opacity="0.95"/><circle cx="-18" cy="22" r="11" fill="#fff" opacity="0.95"/>` +
+    `<path d="M-34 -6 C-44 -30 -14 -46 2 -36 C14 -52 46 -44 44 -20 C62 -14 56 14 36 14 C28 28 -6 28 -14 16 C-38 22 -48 6 -34 -6Z" fill="#fff" stroke="#f2d7e6" stroke-width="3"/>` +
+    `<g transform="translate(6 -12) scale(1.1)">${needIcon(k)}</g></g>`;
 }
 
 export class SceneView {
@@ -56,7 +77,7 @@ export class SceneView {
   private pid = -1;
   private vb = { x: 0, y: 0, w: 1600, h: 900 };
   /** Wide places scroll sideways: camX is the world x at the middle of the screen. */
-  private camX = 800;
+  camX = 800;
   private scale = 1;
   private pan: { sx: number; cam0: number; lastX: number; lastT: number; v: number; moved: boolean } | null = null;
   private edgeRaf = 0;
@@ -117,8 +138,47 @@ export class SceneView {
   }
 
   /** Every few seconds a friend does something on her own: glances, waves, twirls or hops. */
+  private needTick = 0;
+  /** Needs drain over time; beds, baths and fun seats top them up while friends use them. */
+  private tickAllNeeds(): void {
+    const now = Date.now();
+    for (const d of this.dolls()) {
+      const before = neediest(d.needs);
+      d.needs = tickNeeds(d.needs, now);
+      const si = this.seatOf(d);
+      if (si) this.seatNeeds(d, si.it, si.s, false);
+      if (neediest(d.needs) !== before && !(this.drag && 'd' in this.drag && this.drag.d === d)) this.syncDoll(d);
+    }
+    for (const pt of this.pets()) {
+      const before = neediest(pt.needs);
+      pt.needs = tickPetNeeds(pt, now).needs ?? pt.needs;
+      const si = pt.seat ? this.seatOf(pt) : null;
+      if (si?.s.pose === 'sleep' && pt.needs) pt.needs = fill(pt.needs, 'sleep', 25);
+      if (neediest(pt.needs) !== before) this.syncPet(pt);
+    }
+    G.changed();
+  }
+
+  /** What sitting somewhere does for a friend: beds rest, baths clean, rides and swings are fun. */
+  private seatNeeds(d: Doll, it: PlacedItem, s: SeatDef, first: boolean): void {
+    const def = FURN_BY_ID[it.def];
+    const n = tickNeeds(d.needs, Date.now());
+    if (s.pose === 'sleep') d.needs = fill(n, 'sleep', first ? 10 : 25);
+    else if (def.cat === 'bath') {
+      d.needs = fill(n, 'clean', 100);
+      if (first) {
+        const sp = this.toScreen(d.x, d.y - 120);
+        burst('bubble', sp.x, sp.y, 18);
+        sound.spray();
+      }
+    } else if (def.cat === 'rides' || s.anim) d.needs = fill(n, 'fun', first ? 35 : 10);
+    else d.needs = n;
+  }
+
   private idleMoment(): void {
     if (document.visibilityState !== 'visible') return;
+    if (++this.needTick % 5 === 0) this.tickAllNeeds();
+    this.petWander();
     const busy = this.drag && 'started' in this.drag && this.drag.started;
     const pool = this.dolls().filter((d) => !(busy && this.drag && 'd' in this.drag && this.drag.d === d));
     if (!pool.length) return;
@@ -273,8 +333,43 @@ export class SceneView {
 
   renderFg(): void {
     const se = G.s.season;
-    this.fgG.innerHTML = this.place.id === 'theater' ? theaterCurtains(this.curtainsOpen) + audience(this.cheering)
-      : this.place.outdoor ? butterflies(se) : roomLight(this.place.id, se);
+    const night = !!this.sc.night;
+    this.fgG.innerHTML = (this.place.id === 'theater' ? theaterCurtains(this.curtainsOpen) + audience(this.cheering)
+      : this.place.outdoor ? (night ? '' : butterflies(se)) : night ? '' : roomLight(this.place.id, se)) + (night ? this.nightLayer() : '');
+  }
+
+  /** Bedtime: the room goes dark blue, lamps that are switched on glow, and outside the stars come out. */
+  private nightLayer(): string {
+    const x0 = -800;
+    const w = this.worldW + 1600;
+    let g = '<defs><radialGradient id="night-glow"><stop offset="0" stop-color="#fff4c2" stop-opacity="0.8"/><stop offset="0.45" stop-color="#ffd36b" stop-opacity="0.28"/><stop offset="1" stop-color="#ffd36b" stop-opacity="0"/></radialGradient></defs>';
+    g += `<rect x="${x0}" y="-700" width="${w}" height="2200" fill="#1c1550" opacity="0.5"/>`;
+    if (this.place.outdoor) {
+      g += '<circle cx="1320" cy="140" r="70" fill="#fff8d6" opacity="0.25"/><circle cx="1320" cy="140" r="46" fill="#fff8d6"/><circle cx="1340" cy="126" r="40" fill="#1c1550" opacity="0.55"/>';
+      for (let i = 0; i < 46; i++) {
+        const x = ((i * 397) % w) + x0;
+        const y = 20 + ((i * 131) % 400);
+        g += `<circle cx="${x}" cy="${y}" r="${2 + (i % 3)}" fill="#fff"><animate attributeName="opacity" values="1;0.3;1" dur="${2 + (i % 4) * 0.7}s" repeatCount="indefinite"/></circle>`;
+      }
+    }
+    for (const it of this.sc.items) {
+      const def = FURN_BY_ID[it.def];
+      if (!def || !this.isOn(it, def)) continue;
+      if (!(def.cat === 'lighting' || /lamp|light|candle|lantern|fire|neon|star|tv|glow/i.test(`${def.id} ${def.name}`))) continue;
+      const kk = k(it);
+      const cy = def.mount === 'floor' || def.mount === 'prop' ? it.y - def.h * 0.6 * kk : it.y;
+      g += `<ellipse cx="${it.x.toFixed(0)}" cy="${cy.toFixed(0)}" rx="${(280 * kk).toFixed(0)}" ry="${(240 * kk).toFixed(0)}" fill="url(#night-glow)" style="mix-blend-mode:screen"/>`;
+    }
+    return g;
+  }
+
+  /** Switches the room between day and night. */
+  setNight(on: boolean): void {
+    this.sc.night = on;
+    this.renderFg();
+    if (on) sound.snore();
+    else sound.sparkle();
+    G.bump(on ? 'night' : 'morning');
   }
 
   private renderChalk(): void {
@@ -294,6 +389,7 @@ export class SceneView {
     this.els.clear();
     for (const it of this.sc.items) this.syncItem(it);
     for (const d of this.dolls()) this.syncDoll(d);
+    for (const p of this.pets()) this.syncPet(p);
     this.sort();
   }
 
@@ -301,8 +397,23 @@ export class SceneView {
     return G.s.dolls.filter((d) => d.place === this.place.id);
   }
 
+  pets(): Pet[] {
+    return G.s.pets.filter((p) => p.place === this.place.id);
+  }
+
   private seatOwner(it: PlacedItem, i: number): Doll | undefined {
     return this.dolls().find((d) => d.seat && d.seat.uid === it.uid && d.seat.i === i);
+  }
+
+  /** A friend or a pet is sitting there. */
+  private seatTaken(it: PlacedItem, i: number): boolean {
+    return !!this.seatOwner(it, i) || this.pets().some((p) => p.seat && p.seat.uid === it.uid && p.seat.i === i);
+  }
+
+  /** Friends and pets riding or sitting on this item follow it. */
+  private syncRiders(it: PlacedItem): void {
+    for (const d of this.dollsOn(it)) this.syncDoll(d);
+    for (const p of this.pets()) if (p.seat?.uid === it.uid) this.syncPet(p);
   }
 
   /** Switched on? Rides start on and keep going until tapped. */
@@ -341,7 +452,7 @@ export class SceneView {
 
   private inUse(it: PlacedItem): boolean {
     const def = FURN_BY_ID[it.def];
-    return !!def.animWhenUsed && (def.seats ?? []).some((_, i) => this.seatOwner(it, i));
+    return !!def.animWhenUsed && (def.seats ?? []).some((_, i) => this.seatTaken(it, i));
   }
 
   syncItem(it: PlacedItem): void {
@@ -379,6 +490,163 @@ export class SceneView {
     return { x: it.x + (it.flip ? -s.x : s.x) * k(it), y: it.y + s.y * k(it) };
   }
 
+  // ---------------- pets ----------------
+  private petFace = new Map<string, 1 | -1>();
+  private petExpr = new Map<string, string>();
+
+  syncPet(pt: Pet): void {
+    let el = this.els.get('q' + pt.id);
+    if (!el) {
+      el = this.g('pet');
+      el.dataset.pet = pt.id;
+      this.worldG.appendChild(el);
+      this.els.set('q' + pt.id, el);
+    }
+    const dragging = !!(this.drag && this.drag.kind === 'pet' && this.drag.p === pt && this.drag.started);
+    let pose: 'stand' | 'sit' | 'sleep' | 'held' | 'walk' = dragging ? 'held' : el.classList.contains('walking') ? 'walk' : 'stand';
+    let x = pt.x;
+    let y = pt.y;
+    let wrap = { wrapOpen: '<g>', wrapClose: '' };
+    const si = !dragging && pt.seat ? this.seatOf(pt) : null;
+    if (si) {
+      pose = si.s.pose === 'sleep' ? 'sleep' : 'sit';
+      const w = this.seatWorld(si.it, si.s);
+      x = pt.x = w.x;
+      y = pt.y = w.y;
+      wrap = this.seatMotion(si.it, si.s);
+    }
+    const expr = this.petExpr.get(pt.id) ?? (pose === 'sleep' ? 'sleep' : dragging ? 'happy' : 'normal');
+    const face = this.petFace.get(pt.id) ?? 1;
+    const sh = pose === 'stand' || pose === 'walk' || pose === 'held' ? shadow(dragging ? 60 : 90, dragging ? 12 : 18) : '';
+    const want = dragging || pose === 'sleep' ? null : neediest(pt.needs);
+    const bubble = want ? needBubble(want, 50, -petHeight(pt.look) - 10) : '';
+    el.innerHTML = `${sh}<g class="bob">${wrap.wrapOpen}<g class="art"${face < 0 ? ' transform="scale(-1 1)"' : ''}>${renderPet(pt.look, { pose, expr: expr as 'normal' })}</g>${wrap.wrapClose}</g>${bubble}</g>`;
+    el.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+  }
+
+  private tapPet(pt: Pet): void {
+    sound.squeak();
+    this.petExpr.set(pt.id, 'happy');
+    window.setTimeout(() => {
+      this.petExpr.delete(pt.id);
+      this.syncPet(pt);
+    }, 1300);
+    this.syncPet(pt);
+    const el = this.els.get('q' + pt.id);
+    el?.classList.remove('hop');
+    void el?.getBoundingClientRect();
+    el?.classList.add('hop');
+    const sp = this.toScreen(pt.x, pt.y - petHeight(pt.look));
+    burst('heart', sp.x, sp.y + 20, 6);
+    pt.needs = tickPetNeeds(pt, Date.now()).needs ?? pt.needs;
+    const want = neediest(pt.needs);
+    if (want) toast(`${esc(pt.name)} ${NEED_TEXT[want]}`, want === 'food' ? 'cake' : want === 'sleep' ? 'bed' : want === 'clean' ? 'bath' : 'star');
+    this.showPopup(sp.x, sp.y - 6, `<button class="pop-btn big" data-act="care">${icon('heart')}<span>Care for ${esc(pt.name)}</span></button>`, (act) => {
+      if (act === 'care') this.hooks.openPet?.(pt.id);
+    });
+  }
+
+  private dropPet(pt: Pet): void {
+    let best: { it: PlacedItem; i: number; s: SeatDef; dist: number } | null = null;
+    for (const it of this.sc.items) {
+      const def = FURN_BY_ID[it.def];
+      (def.seats ?? []).forEach((s, i) => {
+        if (s.pose === 'slide' || this.seatTaken(it, i)) return;
+        const w = this.seatNow(it, s);
+        const dist = Math.hypot(w.x - pt.x, w.y - (pt.y - 40));
+        if (dist < 120 && (!best || dist < best.dist)) best = { it, i, s, dist };
+      });
+    }
+    if (best) {
+      const b = best as { it: PlacedItem; i: number; s: SeatDef };
+      pt.seat = { uid: b.it.uid, i: b.i };
+      this.syncPet(pt);
+      this.refreshUsers();
+      this.sort();
+      sound.pop();
+      G.changed();
+      return;
+    }
+    const target = this.floorY(pt.y < this.place.floorTop ? this.place.floorTop + 60 : pt.y);
+    this.syncPet(pt);
+    this.fall(pt.y, target, (y) => {
+      pt.y = y;
+      this.els.get('q' + pt.id)?.setAttribute('transform', `translate(${pt.x.toFixed(1)} ${y.toFixed(1)})`);
+    }, () => {
+      this.sort();
+      G.changed();
+    });
+  }
+
+  private sendPetHome(pt: Pet): void {
+    pt.place = null;
+    pt.seat = null;
+    this.els.get('q' + pt.id)?.remove();
+    this.els.delete('q' + pt.id);
+    sound.pop();
+    this.refreshUsers();
+    G.changed();
+  }
+
+  /** Every so often a pet trots a little way on its own. */
+  private petWander(): void {
+    const free = this.pets().filter((pt) => !pt.seat && !(this.drag && this.drag.kind === 'pet' && this.drag.p === pt));
+    if (!free.length || Math.random() > 0.45) return;
+    const pt = free[Math.floor(Math.random() * free.length)];
+    const dir: 1 | -1 = Math.random() < 0.5 ? -1 : 1;
+    const from = pt.x;
+    const to = this.clampX(from + dir * (60 + Math.random() * 120));
+    this.petFace.set(pt.id, to >= from ? 1 : -1);
+    const el = this.els.get('q' + pt.id);
+    el?.classList.add('walking');
+    this.syncPet(pt);
+    tween(900, (t) => {
+      if (pt.seat || (this.drag && this.drag.kind === 'pet' && this.drag.p === pt)) return;
+      pt.x = from + (to - from) * t;
+      this.els.get('q' + pt.id)?.setAttribute('transform', `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)})`);
+    }, () => {
+      el?.classList.remove('walking');
+      this.syncPet(pt);
+      this.sort();
+    });
+  }
+
+  /** The motion a rider shares with a moving seat (swings, rides, carousels...), as wrapping tags. */
+  private seatMotion(it: PlacedItem, s: SeatDef): { wrapOpen: string; wrapClose: string } {
+    let wrapOpen = '<g>';
+    let wrapClose = '';
+    if (s.anim && s.anim.kind === 'orbit') {
+      // Carousels: ride round with the horse (or wait at its spot while the ride is stopped).
+      const o = orbitOf(s.anim);
+      return { wrapOpen: this.seatMoving(it) ? orbitOpen(o, it.flip ? -1 : 1, k(it), 0.6) : orbitStill(o, 0.6), wrapClose: '</g></g>' };
+    }
+    if (s.anim && this.seatMoving(it)) {
+        const sg = it.flip ? -1 : 1;
+        const spline = 'calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"';
+        const begin = `begin="${-(s.anim.phase ?? 0)}s"`;
+        if (s.anim.kind === 'wheel') {
+          // Ferris wheels and teacups: circle the pivot while staying upright.
+          const px = sg * (s.anim.pivot[0] - s.x) * k(it);
+          const py = (s.anim.pivot[1] - s.y) * k(it);
+          const dir = (s.anim.amp >= 0 ? 1 : -1) * sg;
+          wrapOpen = `<g><animateTransform attributeName="transform" type="rotate" values="0 ${px} ${py};${360 * dir} ${px} ${py}" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite"/><g><animateTransform attributeName="transform" type="rotate" values="0 0 0;${-360 * dir} 0 0" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite"/>`;
+          wrapClose = '</g>';
+        } else if (s.anim.kind === 'sway') {
+          const a = (s.anim.amp * k(it)).toFixed(1);
+          wrapOpen = `<g><animateTransform attributeName="transform" type="translate" values="${-a} 0;${a} 0;${-a} 0" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite" ${spline}/>`;
+        } else if (s.anim.kind === 'bounce') {
+          const up = (s.anim.amp * k(it)).toFixed(1);
+          wrapOpen = `<g><animateTransform attributeName="transform" type="translate" values="0 0;0 ${-up};0 0" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite" ${spline}/>`;
+        } else {
+          const px = sg * (s.anim.pivot[0] - s.x) * k(it);
+          const py = (s.anim.pivot[1] - s.y) * k(it);
+          const a = s.anim.amp * sg;
+          wrapOpen = `<g><animateTransform attributeName="transform" type="rotate" values="${-a} ${px} ${py};${a} ${px} ${py};${-a} ${px} ${py}" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite" ${spline}/>`;
+        }
+          }
+    return { wrapOpen, wrapClose };
+  }
+
   syncDoll(d: Doll): void {
     let el = this.els.get('d' + d.id);
     if (!el) {
@@ -404,36 +672,24 @@ export class SceneView {
       y = w.y;
       d.x = x;
       d.y = y;
-      if (s.anim && s.anim.kind === 'orbit') {
-        // Carousels: ride round with the horse (or wait at its spot while the ride is stopped).
-        const o = orbitOf(s.anim);
-        wrapOpen = this.seatMoving(it) ? orbitOpen(o, it.flip ? -1 : 1, k(it), 0.6) : orbitStill(o, 0.6);
-        wrapClose = '</g></g>';
-      } else if (s.anim && this.seatMoving(it)) {
-        const sg = it.flip ? -1 : 1;
-        const spline = 'calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"';
-        const begin = `begin="${-(s.anim.phase ?? 0)}s"`;
-        if (s.anim.kind === 'wheel') {
-          // Ferris wheels and teacups: circle the pivot while staying upright.
-          const px = sg * (s.anim.pivot[0] - s.x) * k(it);
-          const py = (s.anim.pivot[1] - s.y) * k(it);
-          const dir = (s.anim.amp >= 0 ? 1 : -1) * sg;
-          wrapOpen = `<g><animateTransform attributeName="transform" type="rotate" values="0 ${px} ${py};${360 * dir} ${px} ${py}" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite"/><g><animateTransform attributeName="transform" type="rotate" values="0 0 0;${-360 * dir} 0 0" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite"/>`;
-          wrapClose = '</g>';
-        } else if (s.anim.kind === 'sway') {
-          const a = (s.anim.amp * k(it)).toFixed(1);
-          wrapOpen = `<g><animateTransform attributeName="transform" type="translate" values="${-a} 0;${a} 0;${-a} 0" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite" ${spline}/>`;
-        } else if (s.anim.kind === 'bounce') {
-          const up = (s.anim.amp * k(it)).toFixed(1);
-          wrapOpen = `<g><animateTransform attributeName="transform" type="translate" values="0 0;0 ${-up};0 0" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite" ${spline}/>`;
-        } else {
-          const px = sg * (s.anim.pivot[0] - s.x) * k(it);
-          const py = (s.anim.pivot[1] - s.y) * k(it);
-          const a = s.anim.amp * sg;
-          wrapOpen = `<g><animateTransform attributeName="transform" type="rotate" values="${-a} ${px} ${py};${a} ${px} ${py};${-a} ${px} ${py}" dur="${s.anim.dur}s" ${begin} repeatCount="indefinite" ${spline}/>`;
-        }
-      }
+      ({ wrapOpen, wrapClose } = this.seatMotion(it, s));
       if (pose === 'sleep') extra = `<g class="zzz" transform="translate(${-hipHeight(d.look) - 40} -90)"><text>z</text><text x="22" y="-26">z</text><text x="44" y="-56">Z</text></g>`;
+    }
+    // bath time: a pile of bubbles round the friend in the tub or shower
+    if (seatInfo && !dragging && FURN_BY_ID[seatInfo.it.def]?.cat === 'bath' && pose === 'sit') {
+      let foam = '';
+      for (let i = 0; i < 9; i++) {
+        const bx = -70 + i * 17;
+        const by = -10 - (i % 3) * 12;
+        foam += `<circle cx="${bx}" cy="${by}" r="${16 + (i % 3) * 5}" fill="#ffffff" opacity="0.92" stroke="#cfeeff" stroke-width="2"><animate attributeName="r" values="${16 + (i % 3) * 5};${19 + (i % 3) * 5};${16 + (i % 3) * 5}" dur="${1.6 + (i % 4) * 0.3}s" repeatCount="indefinite"/></circle>`;
+      }
+      for (let i = 0; i < 4; i++) foam += `<circle cx="${-40 + i * 28}" cy="-60" r="${5 + (i % 2) * 3}" fill="#e6f6ff" stroke="#9fd6ff" stroke-width="1.5"><animateTransform attributeName="transform" type="translate" values="0 0;${(i % 2 ? 1 : -1) * 10} -120" dur="${2.2 + i * 0.4}s" begin="${-i * 0.6}s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="${2.2 + i * 0.4}s" begin="${-i * 0.6}s" repeatCount="indefinite"/></circle>`;
+      extra += `<g class="bath-foam">${foam}</g>`;
+    }
+    const want = dragging || pose === 'sleep' ? null : neediest(d.needs);
+    if (want) {
+      const top = pose === 'sit' ? -(dollHeight(d.look) - hipHeight(d.look)) : -dollHeight(d.look);
+      extra += needBubble(want, 70, top - 20);
     }
     const expr = this.expr.get(d.id) ?? (pose === 'sleep' ? 'sleep' : dragging ? 'surprised' : 'normal');
     const sh = pose === 'stand' || pose === 'held' ? shadow(dragging ? 70 : 96, dragging ? 16 : 22) : '';
@@ -443,7 +699,7 @@ export class SceneView {
     el.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
   }
 
-  private seatOf(d: Doll): { it: PlacedItem; s: SeatDef } | null {
+  private seatOf(d: { seat: Doll['seat'] }): { it: PlacedItem; s: SeatDef } | null {
     if (!d.seat) return null;
     const it = this.sc.items.find((i) => i.uid === d.seat!.uid);
     const s = it ? FURN_BY_ID[it.def]?.seats?.[d.seat.i] : undefined;
@@ -451,6 +707,7 @@ export class SceneView {
   }
 
   private validateSeats(): void {
+    for (const pt of this.pets()) if (pt.seat && !this.seatOf(pt)) pt.seat = null;
     for (const d of this.dolls()) {
       if (d.seat && !this.seatOf(d)) {
         d.seat = null;
@@ -471,8 +728,14 @@ export class SceneView {
 
   private key(el: SVGGElement): number {
     if (this.drag && 'started' in this.drag && this.drag.started) {
-      if ((this.drag.kind === 'item' && el.dataset.uid === String(this.drag.it.uid)) || (this.drag.kind === 'doll' && el.dataset.doll === this.drag.d.id)) return 1e7 + (el.classList.contains('front') ? 1 : 0);
+      if ((this.drag.kind === 'item' && el.dataset.uid === String(this.drag.it.uid)) || (this.drag.kind === 'doll' && el.dataset.doll === this.drag.d.id) || (this.drag.kind === 'pet' && el.dataset.pet === this.drag.p.id)) return 1e7 + (el.classList.contains('front') ? 1 : 0);
       if (this.drag.kind === 'item' && this.drag.deps.some((x) => String(x.it.uid) === el.dataset.uid)) return 1e7 + 2;
+    }
+    if (el.dataset.pet) {
+      const pt = G.s.pets.find((x) => x.id === el.dataset.pet);
+      if (!pt) return 0;
+      const si = pt.seat ? this.seatOf(pt) : null;
+      return si ? this.itemKey(si.it) + 0.35 : pt.y + 0.12;
     }
     if (el.dataset.doll) {
       const d = G.s.dolls.find((x) => x.id === el.dataset.doll);
@@ -554,7 +817,7 @@ export class SceneView {
   }
 
   /** Called by the tray when a finger drags something out of it. */
-  beginTrayDrag(kind: 'item' | 'doll', id: string, e: PointerEvent): void {
+  beginTrayDrag(kind: 'item' | 'doll' | 'pet', id: string, e: PointerEvent): void {
     this.hidePopup();
     const p = this.toWorld(e.clientX, e.clientY);
     this.pid = e.pointerId;
@@ -564,6 +827,16 @@ export class SceneView {
       if (!it) return;
       this.drag = { kind: 'item', it, ox: it.x - p.x, oy: it.y - p.y, started: true, sx: e.clientX, sy: e.clientY, fromTray: true, deps: [] };
       sound.pick();
+    } else if (kind === 'pet') {
+      const pt = G.s.pets.find((x) => x.id === id);
+      if (!pt) return;
+      pt.place = this.place.id;
+      pt.seat = null;
+      pt.x = p.x;
+      pt.y = p.y + 60;
+      this.drag = { kind: 'pet', p: pt, ox: pt.x - p.x, oy: pt.y - p.y, started: true, sx: e.clientX, sy: e.clientY, fromTray: true };
+      this.syncPet(pt);
+      sound.squeak();
     } else {
       const d = G.s.dolls.find((x) => x.id === id);
       if (!d) return;
@@ -581,7 +854,7 @@ export class SceneView {
   }
 
   /** Drops something from the tray into the middle of the scene (for a plain tap). */
-  dropIn(kind: 'item' | 'doll', id: string): void {
+  dropIn(kind: 'item' | 'doll' | 'pet', id: string): void {
     const x = this.clampX(this.camX - 100 + Math.random() * 200);
     if (kind === 'item') {
       const def = FURN_BY_ID[id];
@@ -594,6 +867,17 @@ export class SceneView {
         this.sort();
         this.placed(it);
       } else this.settleItem(it, () => this.placed(it));
+    } else if (kind === 'pet') {
+      const pt = G.s.pets.find((v) => v.id === id);
+      if (!pt) return;
+      pt.place = this.place.id;
+      pt.seat = null;
+      pt.x = x;
+      pt.y = this.floorY(this.place.floorTop + 120 + Math.random() * 80);
+      this.syncPet(pt);
+      this.sort();
+      sound.squeak();
+      G.changed();
     } else {
       const d = G.s.dolls.find((v) => v.id === id);
       if (!d) return;
@@ -649,9 +933,14 @@ export class SceneView {
       this.listen();
       return;
     }
-    const dollEl = t.closest('.doll') as SVGGElement | null;
+    const petEl = t.closest('.pet') as SVGGElement | null;
+    const dollEl = petEl ? null : (t.closest('.doll') as SVGGElement | null);
     const itemEl = t.closest('.it') as SVGGElement | null;
-    if (dollEl) {
+    if (petEl) {
+      const pt = G.s.pets.find((x) => x.id === petEl.dataset.pet);
+      if (!pt) return;
+      this.drag = { kind: 'pet', p: pt, ox: pt.x - p.x, oy: pt.y - p.y, started: false, sx: e.clientX, sy: e.clientY, fromTray: false };
+    } else if (dollEl) {
       const d = G.s.dolls.find((x) => x.id === dollEl.dataset.doll);
       if (!d) return;
       const fx = d.seat ? d.x : d.x;
@@ -721,7 +1010,11 @@ export class SceneView {
         dep.it.y = y + dep.dy;
         this.moveItemEl(dep.it);
       }
-      for (const d of this.dollsOn(dr.it)) this.syncDoll(d);
+      this.syncRiders(dr.it);
+    } else if (dr.kind === 'pet') {
+      dr.p.x = x;
+      dr.p.y = y;
+      this.els.get('q' + dr.p.id)?.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
     } else {
       dr.d.x = x;
       dr.d.y = y;
@@ -738,6 +1031,11 @@ export class SceneView {
       sound.pick();
       this.refreshUsers();
       this.syncDoll(dr.d);
+    } else if (dr.kind === 'pet') {
+      dr.p.seat = null;
+      sound.squeak();
+      this.refreshUsers();
+      this.syncPet(dr.p);
     } else {
       dr.deps = this.dependents(dr.it).map((it) => ({ it, dx: it.x - dr.it.x, dy: it.y - dr.it.y }));
       this.els.get('i' + dr.it.uid)?.classList.add('lifted');
@@ -783,12 +1081,16 @@ export class SceneView {
     this.hooks.onDragState(false);
     if (!dr.started) {
       if (dr.kind === 'doll') this.tapDoll(dr.d, e);
+      else if (dr.kind === 'pet') this.tapPet(dr.p);
       else this.tapItem(dr.it, e);
       return;
     }
     const tray = this.hooks.trayRect();
     const overTray = !!tray && e.clientY > tray.top + 10;
-    if (dr.kind === 'doll') {
+    if (dr.kind === 'pet') {
+      if (overTray) return this.sendPetHome(dr.p);
+      this.dropPet(dr.p);
+    } else if (dr.kind === 'doll') {
       if (overTray) return this.sendHome(dr.d);
       this.dropDoll(dr.d);
     } else {
@@ -798,6 +1100,7 @@ export class SceneView {
       this.settleItem(dr.it, () => {
         if (dr.fromTray) this.placed(dr.it);
         else G.changed();
+        if (this.sc.night) this.renderFg();
       });
       for (const dep of dr.deps) {
         const def = FURN_BY_ID[dep.it.def];
@@ -871,7 +1174,7 @@ export class SceneView {
         dep.y += dy;
         this.moveItemEl(dep);
       }
-      for (const d of this.dollsOn(it)) this.syncDoll(d);
+      this.syncRiders(it);
     }, () => {
       this.sort();
       const el = this.els.get('i' + it.uid);
@@ -904,7 +1207,7 @@ export class SceneView {
     for (const it of this.sc.items) {
       const def = FURN_BY_ID[it.def];
       (def.seats ?? []).forEach((s, i) => {
-        if (this.seatOwner(it, i)) return;
+        if (this.seatTaken(it, i)) return;
         const w = this.seatNow(it, s);
         const dist = Math.hypot(w.x - d.x, w.y - hipY);
         const reach = s.pose === 'sleep' ? 170 : 130;
@@ -921,6 +1224,7 @@ export class SceneView {
       sound.pop();
       const id = b.it.def;
       if (FURN_BY_ID[b.it.def]?.cat === 'rides') G.bump('ride');
+      this.seatNeeds(d, b.it, b.s, true);
       if (b.s.pose === 'sleep') {
         G.bump('sleep');
         sound.snore();
@@ -991,7 +1295,30 @@ export class SceneView {
   private tryFeed(it: PlacedItem, e: PointerEvent): boolean {
     const def = FURN_BY_ID[it.def];
     if (!def.food) return false;
-    const hit = document.elementsFromPoint(e.clientX, e.clientY).map((el) => el.closest('.doll') as SVGGElement | null).find((el) => el && this.worldG.contains(el));
+    const under = document.elementsFromPoint(e.clientX, e.clientY);
+    const petHit = under.map((el) => el.closest('.pet') as SVGGElement | null).find((el) => el && this.worldG.contains(el));
+    const pt = petHit ? G.s.pets.find((x) => x.id === petHit.dataset.pet) : undefined;
+    if (pt) {
+      const elp = this.els.get('i' + it.uid);
+      const st = { x: it.x, y: it.y };
+      const mouth = { x: pt.x, y: pt.y - petHeight(pt.look) * 0.5 };
+      tween(260, (t) => elp?.setAttribute('transform', `translate(${(st.x + (mouth.x - st.x) * t).toFixed(1)} ${(st.y + (mouth.y - st.y) * t).toFixed(1)}) scale(${(1 - t * 0.9).toFixed(2)})`), () => {
+        this.removeItem(it, true);
+        pt.needs = fill(tickPetNeeds(pt, Date.now()).needs ?? fullNeedsNow(), 'food', 50);
+        this.petExpr.set(pt.id, 'eat');
+        this.syncPet(pt);
+        window.setTimeout(() => {
+          this.petExpr.delete(pt.id);
+          this.syncPet(pt);
+        }, 1400);
+        sound.yum();
+        const sp = this.toScreen(mouth.x, mouth.y);
+        burst('heart', sp.x, sp.y, 10);
+        G.bump('petFeed');
+      });
+      return true;
+    }
+    const hit = under.map((el) => el.closest('.doll') as SVGGElement | null).find((el) => el && this.worldG.contains(el));
     const d = hit ? G.s.dolls.find((x) => x.id === hit.dataset.doll) : undefined;
     if (!d) return false;
     const el = this.els.get('i' + it.uid);
@@ -1005,6 +1332,8 @@ export class SceneView {
       sound.yum();
       const sp = this.toScreen(mouth.x, mouth.y);
       burst('heart', sp.x, sp.y, 10);
+      d.needs = fill(tickNeeds(d.needs, Date.now()), 'food', 45);
+      this.syncDoll(d);
       G.bump('feed');
     });
     return true;
@@ -1066,7 +1395,11 @@ export class SceneView {
     const sp = this.toScreen(d.x, top);
     burst('heart', sp.x, sp.y + 20, 5);
     void e;
-    this.showPopup(sp.x, sp.y - 6, `<button class="pop-btn big" data-act="dress">${icon('hanger')}<span>Dress up ${esc(d.name)}</span></button>`, (act) => {
+    d.needs = tickNeeds(d.needs, Date.now());
+    const want = neediest(d.needs);
+    const meters = `<div class="need-meters">${NEED_KEYS.map((k) => `<span class="nm nm-${k}${k === want ? ' low' : ''}" title="${k}"><svg viewBox="-30 -30 60 60">${needIcon(k)}</svg><i style="--v:${Math.round(d.needs![k])}%"></i></span>`).join('')}</div>`;
+    if (want) toast(`${esc(d.name)} ${NEED_TEXT[want]}`, want === 'food' ? 'cake' : want === 'sleep' ? 'bed' : want === 'clean' ? 'bath' : 'star');
+    this.showPopup(sp.x, sp.y - 6, `${meters}<button class="pop-btn big" data-act="dress">${icon('hanger')}<span>Dress up ${esc(d.name)}</span></button>`, (act) => {
       if (act === 'dress') this.hooks.openCloset(d.id);
     });
   }
@@ -1080,7 +1413,8 @@ export class SceneView {
     if (def.toggle) {
       it.on = !this.isOn(it, def);
       this.syncItem(it);
-      for (const d of this.dollsOn(it)) this.syncDoll(d);
+      this.syncRiders(it);
+      if (this.sc.night) this.renderFg();
       if (it.on) {
         if (def.sfx === 'music') sound.tune();
         else if (def.sfx === 'ding') sound.ding();
@@ -1119,7 +1453,7 @@ export class SceneView {
       if (act === 'flip') {
         it.flip = !it.flip;
         this.syncItem(it);
-        for (const d of this.dollsOn(it)) this.syncDoll(d);
+        this.syncRiders(it);
         sound.tap();
         G.changed();
         return true;
@@ -1128,7 +1462,7 @@ export class SceneView {
         it.scale = SIZES[(SIZES.indexOf(k(it)) + 1) % SIZES.length];
         if (it.scale === 1) delete it.scale;
         this.syncItem(it);
-        for (const d of this.dollsOn(it)) this.syncDoll(d);
+        this.syncRiders(it);
         for (const dep of this.dependents(it)) this.settleItem(dep);
         this.sort();
         sound.boing();
@@ -1144,7 +1478,18 @@ export class SceneView {
 
   private spawnFrom(it: PlacedItem, def: FurnDef): void {
     const list = def.spawn!;
-    const id = list[Math.floor(Math.random() * list.length)];
+    let id = list[Math.floor(Math.random() * list.length)];
+    // At home, fridges hand out the groceries you bought first.
+    if (this.place.room && /fridge|freezer/i.test(def.id)) {
+      const have = Object.keys(G.s.pantry).filter((f) => G.s.pantry[f] > 0 && FURN_BY_ID[f]);
+      if (have.length) {
+        id = have[Math.floor(Math.random() * have.length)];
+        G.s.pantry[id]--;
+        if (G.s.pantry[id] <= 0) delete G.s.pantry[id];
+        const left = Object.values(G.s.pantry).reduce((a, b) => a + b, 0);
+        toast(left ? `From your groceries: ${FURN_BY_ID[id].name}! ${left} more in the fridge.` : `The last of your groceries: ${FURN_BY_ID[id].name}. Shop at the Grocery for more!`, 'cart');
+      }
+    }
     const dir = it.x > this.camX ? -1 : 1;
     const p = this.addItem(id, this.clampX(it.x + dir * (def.w / 2 + 50)), it.y - def.h * 0.6);
     if (!p) return;
@@ -1155,6 +1500,11 @@ export class SceneView {
   }
 
   // ---------------- small popups ----------------
+  /** Hides the item/friend popup at once (e.g. before taking a photo). */
+  hidePopupNow(): void {
+    this.hidePopup();
+  }
+
   private showPopup(x: number, y: number, html: string, onAct: (act: string) => boolean | void): void {
     const pop = this.popup;
     const r = this.root.getBoundingClientRect();

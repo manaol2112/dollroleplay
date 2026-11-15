@@ -2,7 +2,8 @@
 import { flowerG, heartD, sparkleD, starD } from '../art/wear';
 
 const S = (inner: string) => `<svg viewBox="0 0 64 64" aria-hidden="true">${inner}</svg>`;
-const p = (d: string, fill: string, extra = '') => `<path d="${d}" fill="${fill}" ${extra}/>`;
+// An empty fill means the stroke style in `extra` sets it (two fill attributes would draw black).
+const p = (d: string, fill: string, extra = '') => `<path d="${d}"${fill ? ` fill="${fill}"` : ''} ${extra}/>`;
 const c = (x: number, y: number, r: number, fill: string, extra = '') => `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" ${extra}/>`;
 const r = (x: number, y: number, w: number, h: number, rx: number, fill: string, extra = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}" ${extra}/>`;
 const st = (col: string, w = 5) => `fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"`;

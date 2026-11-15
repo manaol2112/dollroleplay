@@ -1,0 +1,111 @@
+/* Seasonal Fun: snowman, pumpkin, egg hunt and sandcastle. */
+
+/* Celebrations draw on the shared effects canvas, which normally sits under activities. */
+body:has(.sf-act) #fx { z-index: 66; }
+
+.act.sf-act .act-body { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.act.sf-snow { background: linear-gradient(180deg, #9fc0e8, #cfe0f5); }
+.act.sf-pump { background: linear-gradient(180deg, #ff9f8a, #ffb98a); }
+.act.sf-pump.sf-night { background: linear-gradient(180deg, #1d1638, #2c2152); }
+.act.sf-pump.sf-night .act-head h2 { color: #ffe680; }
+.act.sf-pump.sf-night .sf-tray { background: rgba(255, 248, 252, 0.94); }
+.act.sf-egg { background: linear-gradient(180deg, #7fcaff, #b9e3ff); }
+.act.sf-sand { background: linear-gradient(180deg, #3fb0ff, #8fd6ff); }
+.act.sf-act .act-head h2 { text-shadow: 0 2px 0 rgba(255, 255, 255, 0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.act.sf-pump.sf-night .act-head h2 { text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4); }
+
+.sf-hbtn { height: 52px; padding: 0 18px 0 10px; font-size: 18px; flex: none; }
+.sf-hbtn svg { width: 32px; height: 32px; }
+.sf-hbtn[disabled] { opacity: 0.45; filter: saturate(0.5); }
+.sf-hbtn.sf-hide { display: none; }
+.sf-hbtn.ghost { background: rgba(255, 255, 255, 0.86); color: var(--ink-soft); box-shadow: var(--shadow-s); }
+
+.sf-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.sf-svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+
+.sf-tip { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 3; pointer-events: none; max-width: min(92%, 640px); width: max-content;
+  display: flex; align-items: center; gap: 8px; padding: 8px 18px 8px 10px; border-radius: 24px; background: var(--glass); box-shadow: var(--shadow-s);
+  border: 2px solid #fff; font-size: 19px; font-weight: 600; color: var(--ink); text-align: center; line-height: 1.2; transition: opacity 0.3s; }
+.sf-tip svg { width: 32px; height: 32px; flex: none; }
+.sf-tip:empty, .sf-tip.fade { opacity: 0; }
+.sf-tip.pop { animation: sfPop 0.45s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes sfPop { from { transform: translateX(-50%) scale(0.7); } }
+
+/* bottom tray: tabs and a scrolling row of things to pick */
+.sf-tray { flex: none; position: relative; z-index: 2; background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-top: 3px solid #fff; box-shadow: 0 -6px 20px rgba(122, 42, 85, 0.14); border-radius: 26px 26px 0 0;
+  padding: 8px calc(12px + var(--safe-r)) calc(10px + var(--safe-b)) calc(12px + var(--safe-l)); min-height: 120px; }
+.sf-tray.drop { background: rgba(255, 228, 238, 0.94); }
+.sf-tray.drop::after { content: ''; position: absolute; inset: 6px; border: 3px dashed var(--pink); border-radius: 22px; pointer-events: none; }
+.sf-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 2px 8px; touch-action: pan-x; }
+.sf-tabs::-webkit-scrollbar, .sf-items::-webkit-scrollbar { display: none; }
+.sf-tab { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 16px 0 8px; border-radius: 22px; background: #fff;
+  box-shadow: var(--shadow-s); font-weight: 600; font-size: 16px; color: var(--ink-soft); transition: transform 0.12s; }
+.sf-tab svg { width: 30px; height: 30px; }
+.sf-tab.on { background: linear-gradient(180deg, #c99bff, #9b6bff); color: #fff; }
+.sf-tab:active, .sf-item:active { transform: scale(0.92); }
+.sf-items { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 2px 2px 4px; touch-action: pan-x; }
+.sf-item { flex: none; position: relative; width: 78px; height: 78px; border-radius: 22px; background: #fff; box-shadow: var(--shadow-s); display: grid; place-items: center;
+  border: 3px solid #fff; transition: transform 0.12s; touch-action: pan-x; }
+.sf-item svg { width: 64px; height: 64px; pointer-events: none; }
+.sf-item.on { border-color: var(--pink); box-shadow: 0 0 0 3px #ffd9e8, var(--shadow-s); }
+.sf-item.color { width: 64px; height: 64px; border-radius: 50%; margin: 7px 2px; border: 4px solid #fff; box-shadow: 0 0 0 1px #eadcea, inset 0 -5px 0 rgba(0, 0, 0, 0.12), var(--shadow-s); }
+.sf-item.color.on { box-shadow: 0 0 0 4px var(--pink), inset 0 -5px 0 rgba(0, 0, 0, 0.12); transform: scale(1.06); }
+.sf-item.wide { width: auto; padding: 0 16px 0 8px; display: flex; gap: 6px; font-weight: 700; color: var(--ink-soft); font-size: 16px; }
+.sf-item.wide svg { width: 48px; height: 48px; }
+.sf-sep { flex: none; width: 3px; border-radius: 2px; background: #f0dcea; margin: 10px 4px; }
+
+/* a friendly message shown in the tray when there is nothing to pick */
+.sf-msg { display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 100px; font-size: 20px; font-weight: 600; color: var(--ink-soft); text-align: center; flex-wrap: wrap; }
+.sf-msg svg { width: 56px; height: 56px; flex: none; }
+.sf-steps { display: flex; gap: 10px; align-items: flex-end; }
+.sf-steps .sf-ball { border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #dfe9f7 70%, #c3d4ea); box-shadow: inset 0 -3px 0 rgba(90, 120, 170, 0.15); opacity: 0.4; position: relative; }
+.sf-steps .sf-ball.now { opacity: 1; box-shadow: 0 0 0 4px var(--pink); animation: sfPulse 1.2s ease-in-out infinite; }
+.sf-steps .sf-ball.done { opacity: 1; }
+.sf-steps .sf-ball.done::after { content: ''; position: absolute; right: -6px; top: -6px; width: 22px; height: 22px; border-radius: 50%; background: var(--mint) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12l4 4 8-8' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat; border: 2px solid #fff; }
+@keyframes sfPulse { 50% { transform: scale(1.08); } }
+
+/* egg hunt basket and timer */
+.sf-hunt { display: flex; align-items: center; justify-content: center; gap: 22px; min-height: 100px; }
+.sf-basket { width: 150px; height: 96px; flex: none; }
+.sf-basket.bump { animation: sfBump 0.35s ease-out; }
+@keyframes sfBump { 40% { transform: scale(1.12) rotate(-3deg); } }
+.sf-count { font-size: 30px; font-weight: 700; color: var(--pink-d); min-width: 96px; }
+.sf-count small { display: block; font-size: 15px; color: var(--ink-soft); font-weight: 600; }
+.sf-timer { width: 84px; height: 84px; flex: none; }
+.sf-fly { position: fixed; z-index: 72; pointer-events: none; width: 70px; height: 70px; margin: -35px 0 0 -35px; }
+.sf-fly svg { width: 100%; height: 100%; }
+
+/* finished card shown in the tray */
+.sf-card { display: flex; align-items: center; justify-content: center; gap: 10px 22px; flex-wrap: wrap; min-height: 100px; text-align: center; animation: sfUp 0.45s cubic-bezier(.3, 1.4, .5, 1); }
+.sf-card h2 { font-size: 28px; color: var(--pink-d); line-height: 1.1; }
+.sf-card p { margin: 2px 0 0; font-size: 17px; color: var(--ink-soft); }
+.sf-card .earned { margin: 0; }
+.sf-card .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+@keyframes sfUp { from { transform: translateY(40px); opacity: 0; } }
+
+/* little animations inside the scenes */
+.sf-wiggle { animation: sfWiggle 0.5s ease-in-out 4; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes sfWiggle { 25% { transform: rotate(-4deg) scale(1.02, 0.98); } 75% { transform: rotate(4deg) scale(0.98, 1.03); } }
+.sf-rustle { animation: sfRustle 0.45s ease-in-out; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes sfRustle { 20% { transform: rotate(-5deg) scale(1.04); } 50% { transform: rotate(4deg); } 80% { transform: rotate(-2deg); } }
+.sf-popin { animation: sfPopIn 0.4s cubic-bezier(.3, 1.7, .5, 1); transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes sfPopIn { from { transform: scale(0.3, 0.1); } }
+.sf-glow { animation: sfGlow 1.6s ease-in-out infinite; }
+@keyframes sfGlow { 50% { opacity: 0.45; } }
+.sf-hint { animation: sfHint 0.6s ease-in-out 3; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes sfHint { 50% { transform: scale(1.08) rotate(3deg); filter: brightness(1.15); } }
+
+@media (max-width: 900px) {
+  .sf-hbtn { padding: 0 14px 0 8px; font-size: 16px; }
+  .sf-hbtn span { display: none; }
+  .sf-hbtn { width: 52px; padding: 0; }
+  .sf-hbtn.primary { width: auto; padding: 0 16px 0 8px; }
+  .sf-hbtn.primary span { display: inline; }
+}
+@media (max-height: 700px) {
+  .sf-item { width: 66px; height: 66px; }
+  .sf-item svg { width: 54px; height: 54px; }
+  .sf-tray { min-height: 0; padding-top: 6px; }
+  .sf-tab { height: 40px; }
+}

@@ -10,12 +10,12 @@ export interface CastMember {
   /** 0..1 across the picture. */
   x: number;
   pose?: 'stand' | 'wave' | 'held' | 'sit';
-  expr?: 'normal' | 'happy' | 'surprised' | 'sleep' | 'yum' | 'sad';
+  expr?: 'normal' | 'happy' | 'surprised' | 'sleep' | 'yum' | 'sad' | 'mad';
   flip?: boolean;
   size?: number;
   /** Where the feet are, 0..1 down the picture (default about 0.87, the ground). */
   y?: number;
-  /** Little extras: crown, party, beanie, scarf, glasses, goggles, helmet, medal, collar, cape, chef, cap, bow, flower, sticks, pondweed, carrot. */
+  /** Little extras: crown, party, beanie, scarf, glasses, goggles, helmet, medal, collar, cape, chef, cap, bow, flower, sticks, pondweed, carrot, stethoscope. */
   acc?: string[];
   /** A prop id held in the hand. */
   hold?: string;
@@ -53,7 +53,8 @@ export interface Story {
   title: string;
   kind: 'book' | 'movie';
   moral: string;
-  cover: { bg: string; color: string; who: string[] };
+  /** tints: optional fur colors for the cover cast, by position (for a grandma fox, say). */
+  cover: { bg: string; color: string; who: string[]; tints?: string[] };
   pages: StoryPage[];
 }
 
@@ -955,4 +956,637 @@ const MOVIES: Story[] = [
   },
 ];
 
-export const STORIES: Story[] = [...BOOKS, ...MOVIES];
+// The second shelf. Grown-ups mom, dad, grandma and grandpa are drawn taller than the kids.
+const MORE_BOOKS: Story[] = [
+  {
+    id: 'sam-and-the-fluffy-ducklings',
+    title: 'Sam and the Fluffy Ducklings',
+    kind: 'book',
+    moral: 'Animals have feelings too. Soft hands, slow moves, and quiet voices help them feel safe.',
+    cover: { bg: '#fdf3b5', color: '#b06a00', who: ['sam', 'duck'] },
+    pages: [
+      {
+        text: 'Sam came to visit Mama Duck\'s farm. Three fluffy ducklings were waddling around the yard. Peep, peep, peep!',
+        bg: 'farm', cast: [{ who: 'sam', x: 0.28, pose: 'wave', expr: 'happy' }, { who: 'duck', x: 0.82, expr: 'happy', acc: ['bow'] }], props: [{ id: 'ducklings', x: 0.56, size: 1.7 }],
+      },
+      {
+        text: 'They looked as soft as clouds. Sam ran at them with his arms open wide. "I want to hug you!"',
+        bg: 'farm', cast: [{ who: 'sam', x: 0.34, pose: 'held', expr: 'happy' }], props: [{ id: 'ducklings', x: 0.66, size: 1.7 }, { id: 'wind', x: 0.16, y: 0.7, size: 0.5 }],
+      },
+      {
+        text: 'Peep! Peep! The ducklings scattered every which way. One hid by the fence, one hid in the hay, and one hid behind Mama Duck.',
+        bg: 'farm', cast: [{ who: 'sam', x: 0.3, expr: 'surprised' }, { who: 'duck', x: 0.8, expr: 'surprised', acc: ['bow'] }], props: [{ id: 'duckling', x: 0.1, y: 0.8, size: 1.6 }, { id: 'duckling', x: 0.54, y: 0.745, size: 1.6 }, { id: 'hay', x: 0.54, size: 0.9 }, { id: 'duckling', x: 0.92, y: 0.9, flip: true, size: 1.6 }],
+      },
+      {
+        text: '"Little animals get scared of big, fast hugs," said Mama Duck kindly. "Try soft hands, slow feet, and a quiet voice."',
+        bg: 'farm', cast: [{ who: 'sam', x: 0.3, expr: 'normal' }, { who: 'duck', x: 0.62, pose: 'wave', expr: 'happy', acc: ['bow'] }], props: [{ id: 'ducklings', x: 0.84, size: 1.7 }],
+      },
+      {
+        text: 'So Sam sat down in the soft grass. He kept very still, and he whispered, "Hello, little ducklings."',
+        bg: 'farm', cast: [{ who: 'sam', x: 0.3, pose: 'sit', expr: 'happy' }, { who: 'duck', x: 0.88, size: 0.85, expr: 'happy', acc: ['bow'] }], props: [{ id: 'ducklings', x: 0.66, size: 1.7 }],
+      },
+      {
+        text: 'One brave duckling waddled closer. Then another one came. Then the third one peeped and hopped right onto Sam\'s shoe!',
+        bg: 'farm', cast: [{ who: 'sam', x: 0.36, pose: 'sit', expr: 'surprised' }], props: [{ id: 'duckling', x: 0.47, y: 0.93, size: 1.6 }, { id: 'duckling', x: 0.56, y: 0.9, size: 1.6 }, { id: 'duckling', x: 0.64, y: 0.92, size: 1.6 }],
+      },
+      {
+        text: 'Sam held out his flat hand with a few seeds. Peck, peck, peck! It tickled, and Sam giggled very, very quietly.',
+        bg: 'farm', cast: [{ who: 'sam', x: 0.36, pose: 'sit', expr: 'happy', hold: 'seeds' }], props: [{ id: 'duckling', x: 0.5, y: 0.82, size: 1.6 }, { id: 'duckling', x: 0.58, y: 0.9, size: 1.6 }, { id: 'duckling', x: 0.66, y: 0.88, size: 1.6 }, { id: 'hearts', x: 0.5, y: 0.3, size: 0.6 }],
+      },
+      {
+        text: 'By the end of the day, the ducklings followed Sam everywhere, in a neat little line. Gentle hands make animal friends!',
+        bg: 'farm', cast: [{ who: 'sam', x: 0.3, expr: 'happy' }, { who: 'duck', x: 0.84, expr: 'happy', acc: ['bow'] }], props: [{ id: 'ducklings', x: 0.52, size: 1.7 }, { id: 'hearts', x: 0.4, y: 0.25, size: 0.6 }],
+      },
+    ],
+  },
+  {
+    id: 'milo-the-food-explorer',
+    title: 'Milo the Food Explorer',
+    kind: 'book',
+    moral: 'Trying new foods is a brave little adventure. Take one small bite, and you might find a new favorite!',
+    cover: { bg: '#d9f7e6', color: '#1f8a5a', who: ['milo', 'grandma'] },
+    pages: [
+      {
+        text: 'Milo liked plain noodles. Just noodles. No sauce, no peas, and absolutely nothing green.',
+        bg: 'kitchen', cast: [{ who: 'milo', x: 0.5, expr: 'yum', hold: 'noodles' }], props: [{ id: 'noodles', x: 0.16, y: 0.567 }],
+      },
+      {
+        text: 'One night, Grandma made a big dinner. There were dumplings, broccoli trees, and a bright orange mango.',
+        bg: 'kitchen', cast: [{ who: 'grandma', x: 0.28, pose: 'wave', expr: 'happy' }, { who: 'milo', x: 0.8, expr: 'surprised' }], props: [{ id: 'feast', x: 0.54, size: 1.5 }],
+      },
+      {
+        text: 'Milo crossed his arms. "Yuck. I don\'t like those." "Have you ever tried them?" asked Grandma. "Well... no," said Milo.',
+        bg: 'kitchen', cast: [{ who: 'grandma', x: 0.28, expr: 'normal' }, { who: 'milo', x: 0.8, expr: 'mad' }], props: [{ id: 'feast', x: 0.54, size: 1.5 }],
+      },
+      {
+        text: '"Then let\'s be food explorers," said Grandma. "Explorers try one tiny bite. You can always say no thank you after."',
+        bg: 'kitchen', cast: [{ who: 'grandma', x: 0.28, pose: 'wave', expr: 'happy' }, { who: 'milo', x: 0.8, expr: 'surprised' }], props: [{ id: 'feast', x: 0.54, size: 1.5 }, { id: 'sparkles', x: 0.55, y: 0.42, size: 0.6 }],
+      },
+      {
+        text: 'Milo nibbled a broccoli tree. Crunch! "It\'s like eating a tiny forest," he said. "It\'s a bit funny, but okay!"',
+        bg: 'kitchen', cast: [{ who: 'grandma', x: 0.26, expr: 'happy' }, { who: 'milo', x: 0.78, expr: 'yum', hold: 'broccoli' }], props: [{ id: 'feast', x: 0.52, size: 1.5 }],
+      },
+      {
+        text: 'Next, he tried a dumpling. Squish! It was warm and soft inside. Milo\'s eyes went wide. "Mmm! I like this one!"',
+        bg: 'kitchen', cast: [{ who: 'grandma', x: 0.26, expr: 'happy' }, { who: 'milo', x: 0.78, pose: 'held', expr: 'happy', hold: 'dumpling' }], props: [{ id: 'feast', x: 0.52, size: 1.5 }, { id: 'hearts', x: 0.78, y: 0.2, size: 0.5 }],
+      },
+      {
+        text: 'The mango was sweet and drippy, like sunshine juice. Some foods he loved, and some he only liked a little. That was okay too.',
+        bg: 'kitchen', cast: [{ who: 'grandma', x: 0.26, expr: 'happy' }, { who: 'milo', x: 0.78, expr: 'yum', hold: 'mango' }], props: [{ id: 'feast', x: 0.52, size: 1.5 }],
+      },
+      {
+        text: 'Now Milo keeps a food explorer map, with a star for every new food he tries. Tomorrow, he\'s trying purple carrots!',
+        bg: 'kitchen', cast: [{ who: 'milo', x: 0.4, pose: 'held', expr: 'happy', hold: 'starpaper' }, { who: 'grandma', x: 0.7, expr: 'happy' }], props: [{ id: 'stars', x: 0.4, y: 0.2, size: 0.6 }],
+      },
+    ],
+  },
+  {
+    id: 'zoes-oops-painting',
+    title: "Zoe's Oops Painting",
+    kind: 'book',
+    moral: 'It\'s okay to make mistakes. Everybody makes them, and each one helps us learn and grow.',
+    cover: { bg: '#ffe1e1', color: '#d62f3a', who: ['zoe', 'bear'] },
+    pages: [
+      {
+        text: 'Zoe was painting a picture for the class art show. It had a big blue sky, green grass, and a bright yellow sun.',
+        bg: 'classroom', cast: [{ who: 'zoe', x: 0.3, pose: 'held', expr: 'happy', hold: 'brush' }], props: [{ id: 'easel', x: 0.6 }, { id: 'paints', x: 0.84 }],
+      },
+      {
+        text: 'Then her elbow bumped a paint pot. Splat! A big red blob landed right in the middle of her sky.',
+        bg: 'classroom', cast: [{ who: 'zoe', x: 0.3, pose: 'held', expr: 'surprised' }], props: [{ id: 'easel', x: 0.6, color: 'blob' }, { id: 'paints', x: 0.86, color: 'spill' }],
+      },
+      {
+        text: '"Oh no! I ruined it!" cried Zoe. She wanted to crumple it up and throw it away.',
+        bg: 'classroom', cast: [{ who: 'zoe', x: 0.32, expr: 'sad' }], props: [{ id: 'easel', x: 0.62, color: 'blob' }],
+      },
+      {
+        text: 'Barnaby the bear, the art teacher, came over. "Everybody makes mistakes," he said. "Even grown-ups. Even bears. Mistakes help us learn."',
+        bg: 'classroom', cast: [{ who: 'bear', x: 0.22, pose: 'wave', expr: 'happy', acc: ['glasses'] }, { who: 'zoe', x: 0.5, expr: 'sad' }], props: [{ id: 'easel', x: 0.78, color: 'blob' }],
+      },
+      {
+        text: '"Look again," said Barnaby. "What could that blob become?" Zoe tilted her head. The blob looked a little like... a ladybug!',
+        bg: 'classroom', cast: [{ who: 'bear', x: 0.22, expr: 'happy', acc: ['glasses'] }, { who: 'zoe', x: 0.5, expr: 'surprised' }], props: [{ id: 'easel', x: 0.78, color: 'blob' }, { id: 'sparkles', x: 0.78, y: 0.28, size: 0.5 }],
+      },
+      {
+        text: 'She painted black spots, six tiny legs, and two wiggly feelers. Then she gave it a big, happy smile.',
+        bg: 'classroom', cast: [{ who: 'zoe', x: 0.3, pose: 'held', expr: 'happy', hold: 'brush' }], props: [{ id: 'easel', x: 0.6, color: 'ladybug' }, { id: 'paints', x: 0.84 }],
+      },
+      {
+        text: 'At the art show, everyone crowded around Zoe\'s picture. "I love the ladybug!" said Kai. "It\'s my favorite part!"',
+        bg: 'classroom', cast: [{ who: 'kai', x: 0.16, pose: 'wave', expr: 'happy' }, { who: 'nina', x: 0.36, expr: 'happy' }, { who: 'zoe', x: 0.86, pose: 'held', expr: 'happy' }], props: [{ id: 'easel', x: 0.6, color: 'ladybug' }, { id: 'hearts', x: 0.6, y: 0.22, size: 0.6 }],
+      },
+      {
+        text: 'Zoe\'s oops had become the best part of all. Now, when she makes a mistake, she smiles and says, "Let\'s see what it can become!"',
+        bg: 'classroom', cast: [{ who: 'zoe', x: 0.26, pose: 'wave', expr: 'happy' }, { who: 'bear', x: 0.8, expr: 'happy', acc: ['glasses'] }], props: [{ id: 'easel', x: 0.53, color: 'ladybug' }, { id: 'confetti', x: 0.5, y: 0.25, size: 0.8 }],
+      },
+    ],
+  },
+  {
+    id: 'kai-and-the-toy-mountain',
+    title: 'Kai and the Toy Mountain',
+    kind: 'book',
+    moral: 'When we clean up after we play, our things stay safe, and there is more room for fun.',
+    cover: { bg: '#dfe9ff', color: '#3657b8', who: ['kai', 'bunny'] },
+    pages: [
+      {
+        text: 'Kai loved his toys. He played with blocks, cars, dinosaurs, and his teddy bear, Mister Buttons. But he never, ever put them away.',
+        bg: 'bedroom', cast: [{ who: 'kai', x: 0.26, pose: 'held', expr: 'happy', hold: 'toydino' }], props: [{ id: 'toys', x: 0.62, y: 0.95, color: 'scatter', size: 0.75 }],
+      },
+      {
+        text: 'Soon his floor turned into a Toy Mountain. It was so big that Biscuit the puppy got lost inside it!',
+        bg: 'bedroom', cast: [{ who: 'kai', x: 0.2, expr: 'surprised' }, { who: 'puppy', x: 0.56, y: 0.62, size: 0.6, expr: 'surprised' }], props: [{ id: 'toys', x: 0.56, size: 1.2 }],
+      },
+      {
+        text: 'Ouch! Kai stepped on a block. Bonk! He tripped on a toy car. "Where is Mister Buttons?" he cried. Nobody could find him.',
+        bg: 'bedroom', cast: [{ who: 'kai', x: 0.42, pose: 'held', expr: 'surprised' }], props: [{ id: 'toys', x: 0.5, y: 0.96, color: 'scatter', size: 0.85 }, { id: 'stars', x: 0.42, y: 0.26, size: 0.45 }],
+      },
+      {
+        text: 'Pip the bunny hopped in. "Cleaning up can be a game," he said. "Let\'s see how fast we can do it. Ready, set, go!"',
+        bg: 'bedroom', cast: [{ who: 'bunny', x: 0.26, pose: 'wave', expr: 'happy' }, { who: 'kai', x: 0.5, expr: 'normal' }], props: [{ id: 'toys', x: 0.8, size: 0.8 }],
+      },
+      {
+        text: 'Cars zoomed into the toy box. Dinosaurs stomped in after them. Blocks hopped in, one by one. Plop, plop, plop!',
+        bg: 'bedroom', cast: [{ who: 'kai', x: 0.26, pose: 'held', expr: 'happy', hold: 'toycar' }, { who: 'bunny', x: 0.78, pose: 'held', expr: 'happy', hold: 'toydino' }], props: [{ id: 'toybox', x: 0.52 }],
+      },
+      {
+        text: 'At the very bottom of the Toy Mountain, they found Mister Buttons. He was a little bit squashed, but still smiling.',
+        bg: 'bedroom', cast: [{ who: 'kai', x: 0.38, pose: 'held', expr: 'happy', hold: 'teddy' }, { who: 'bunny', x: 0.64, expr: 'happy' }], props: [{ id: 'toybox', x: 0.86, size: 0.8 }, { id: 'hearts', x: 0.38, y: 0.22, size: 0.5 }],
+      },
+      {
+        text: 'Now there was so much room! Kai and Pip built a block tower almost as tall as Kai. And nobody stepped on anything.',
+        bg: 'bedroom', cast: [{ who: 'kai', x: 0.28, expr: 'happy' }, { who: 'bunny', x: 0.72, pose: 'held', expr: 'happy' }], props: [{ id: 'blocks', x: 0.5 }, { id: 'toybox', x: 0.9, size: 0.7 }],
+      },
+      {
+        text: 'Every night, Kai\'s toys go back home. "Goodnight, cars. Goodnight, dinosaurs," he says. "And goodnight, Mister Buttons."',
+        bg: 'bedroom', time: 'night', cast: [{ who: 'kai', x: 0.46, outfit: 'pjs', expr: 'happy', hold: 'teddy' }], props: [{ id: 'toybox', x: 0.2, size: 0.8 }],
+      },
+    ],
+  },
+  {
+    id: 'the-wobbly-step',
+    title: 'The Wobbly Step',
+    kind: 'book',
+    moral: 'If something seems wrong or unsafe, tell a grown-up you trust. Telling helps keep everyone safe.',
+    cover: { bg: '#ffeedd', color: '#e0592a', who: ['ruby', 'bear', 'mouse'] },
+    pages: [
+      {
+        text: 'Ruby and Sam ran to the playground. The big red slide was their very favorite thing. Whee!',
+        bg: 'playground', cast: [{ who: 'ruby', x: 0.38, pose: 'wave', expr: 'happy' }, { who: 'sam', x: 0.67, y: 0.535, size: 0.62, pose: 'sit', expr: 'happy', ride: 'sliding' }],
+      },
+      {
+        text: 'But today, one of the ladder steps was loose. It went wibble, wobble, creak when Ruby touched it.',
+        bg: 'playground', cast: [{ who: 'ruby', x: 0.72, pose: 'held', expr: 'surprised' }], props: [{ id: 'loosestep', x: 0.855, y: 0.55 }],
+      },
+      {
+        text: '"We can still climb," said Sam. "We\'ll just step over it." Ruby looked at the wobbly step. Her tummy felt funny.',
+        bg: 'playground', cast: [{ who: 'sam', x: 0.44, pose: 'wave', expr: 'happy' }, { who: 'ruby', x: 0.68, expr: 'normal' }], props: [{ id: 'loosestep', x: 0.855, y: 0.55 }],
+      },
+      {
+        text: 'Just then, little Crumb the mouse came running to the slide. He was much too small to step over a wobbly step!',
+        bg: 'playground', cast: [{ who: 'mouse', x: 0.22, size: 1.2, pose: 'held', expr: 'happy' }, { who: 'sam', x: 0.46, expr: 'normal' }, { who: 'ruby', x: 0.68, expr: 'surprised' }], props: [{ id: 'loosestep', x: 0.855, y: 0.55 }],
+      },
+      {
+        text: '"Wait, Crumb!" called Ruby. "That step isn\'t safe. We need to tell a grown-up, right away."',
+        bg: 'playground', cast: [{ who: 'mouse', x: 0.22, size: 1.2, expr: 'surprised' }, { who: 'ruby', x: 0.5, pose: 'wave', expr: 'normal' }, { who: 'sam', x: 0.7, expr: 'surprised' }], props: [{ id: 'loosestep', x: 0.855, y: 0.55 }],
+      },
+      {
+        text: 'Ruby ran to Barnaby the bear, the park keeper. "One of the ladder steps is wobbly," she said. "Someone could get hurt."',
+        bg: 'playground', cast: [{ who: 'bear', x: 0.3, expr: 'surprised', acc: ['cap'] }, { who: 'ruby', x: 0.56, pose: 'wave', expr: 'normal' }], props: [{ id: 'loosestep', x: 0.855, y: 0.55 }],
+      },
+      {
+        text: '"Thank you for telling me," said Barnaby. "That was the right thing to do." Out came his toolbox. Bang, bang, twist!',
+        bg: 'playground', cast: [{ who: 'ruby', x: 0.12, expr: 'happy' }, { who: 'bear', x: 0.68, expr: 'happy', acc: ['cap'], hold: 'hammer' }], props: [{ id: 'sign', x: 0.32, size: 0.8, text: 'Fixing it! Please wait' }, { id: 'toolbox', x: 0.5 }, { id: 'loosestep', x: 0.855, y: 0.55, color: 'fixed' }],
+      },
+      {
+        text: 'Soon the step was strong and safe again. Crumb went first. "Wheeee!" "Telling a grown-up was the best idea," said Sam.',
+        bg: 'playground', cast: [{ who: 'ruby', x: 0.2, pose: 'held', expr: 'happy' }, { who: 'sam', x: 0.4, expr: 'happy' }, { who: 'mouse', x: 0.66, y: 0.555, size: 1.1, pose: 'sit', expr: 'happy', ride: 'sliding' }], props: [{ id: 'loosestep', x: 0.855, y: 0.55, color: 'fixed' }],
+      },
+    ],
+  },
+  {
+    id: 'slow-walks-with-grandma-fox',
+    title: 'Slow Walks with Grandma Fox',
+    kind: 'book',
+    moral: 'Grandparents and older friends have so much love and so many stories. Being patient and kind with them warms everyone\'s heart.',
+    cover: { bg: '#f3e4d4', color: '#9a5a2a', who: ['fox', 'fox'], tints: ['', '#e6c3a3'] },
+    pages: [
+      {
+        text: 'Every Sunday, Fern the fox went to the park with Grandma Fox. Fern liked to run. Grandma liked to stroll.',
+        bg: 'meadow', cast: [{ who: 'fox', x: 0.3, tint: '#e6c3a3', expr: 'happy', acc: ['glasses'], hold: 'cane' }, { who: 'fox', x: 0.64, pose: 'held', expr: 'happy' }],
+      },
+      {
+        text: '"Hurry up, Grandma!" Fern called. "We\'ll miss the duck pond!" But Grandma\'s knees were old, and they creaked like a squeaky door.',
+        bg: 'meadow', cast: [{ who: 'fox', x: 0.26, tint: '#e6c3a3', expr: 'normal', acc: ['glasses'], hold: 'cane' }, { who: 'fox', x: 0.78, pose: 'wave', expr: 'normal' }],
+      },
+      {
+        text: 'Grandma sat down on a bench to rest. "I\'m sorry, dear," she sighed. "I just can\'t go fast anymore."',
+        bg: 'meadow', cast: [{ who: 'fox', x: 0.38, y: 0.72, tint: '#e6c3a3', pose: 'sit', expr: 'sad', acc: ['glasses'] }, { who: 'fox', x: 0.76, expr: 'normal' }], props: [{ id: 'bench', x: 0.43, size: 1.4 }, { id: 'cane', x: 0.62 }],
+      },
+      {
+        text: 'Fern sat down beside her. She remembered how Grandma always waited for her, back when she was tiny and slow.',
+        bg: 'meadow', cast: [{ who: 'fox', x: 0.34, y: 0.72, tint: '#e6c3a3', pose: 'sit', expr: 'normal', acc: ['glasses'] }, { who: 'fox', x: 0.52, y: 0.72, pose: 'sit', expr: 'normal' }], props: [{ id: 'bench', x: 0.43, size: 1.4 }, { id: 'hearts', x: 0.42, y: 0.28, size: 0.5 }],
+      },
+      {
+        text: '"Let\'s go slow, together," said Fern. She carried Grandma\'s basket and walked right by her side.',
+        bg: 'meadow', cast: [{ who: 'fox', x: 0.34, tint: '#e6c3a3', expr: 'happy', acc: ['glasses'], hold: 'cane' }, { who: 'fox', x: 0.58, expr: 'happy', hold: 'basket' }],
+      },
+      {
+        text: 'Going slowly, they saw so much more. A snail with a stripy shell. A butterfly, napping on a flower.',
+        bg: 'meadow', cast: [{ who: 'fox', x: 0.18, tint: '#e6c3a3', expr: 'happy', acc: ['glasses'], hold: 'cane' }, { who: 'fox', x: 0.4, expr: 'surprised' }], props: [{ id: 'snail', x: 0.62, y: 0.93, size: 1.6 }, { id: 'flower', x: 0.82, size: 1.3 }, { id: 'butterfly', x: 0.82, y: 0.68 }],
+      },
+      {
+        text: 'At the pond, Grandma told funny stories. "When I was little, I fell into this very pond!" she laughed. Fern laughed so hard she snorted.',
+        bg: 'pond', cast: [{ who: 'fox', x: 0.2, tint: '#e6c3a3', pose: 'wave', expr: 'happy', acc: ['glasses'] }, { who: 'fox', x: 0.84, pose: 'held', expr: 'happy' }, { who: 'duck', x: 0.52, y: 0.74, swim: true, expr: 'happy' }],
+      },
+      {
+        text: 'Now Sunday is Fern\'s favorite day of the week. Slow walks with Grandma are the very best walks of all.',
+        bg: 'sunset', cast: [{ who: 'fox', x: 0.38, y: 0.9, tint: '#e6c3a3', pose: 'sit', expr: 'happy', acc: ['glasses'] }, { who: 'fox', x: 0.6, y: 0.9, pose: 'sit', expr: 'happy' }], props: [{ id: 'picnic', x: 0.5, y: 0.98, size: 1.5 }, { id: 'hearts', x: 0.5, y: 0.3, size: 0.7 }],
+      },
+    ],
+  },
+  {
+    id: 'pips-listening-ears',
+    title: "Pip's Listening Ears",
+    kind: 'book',
+    moral: 'Good listeners watch, hear, and wait quietly. When we really listen, we learn so much more.',
+    cover: { bg: '#e6f4ff', color: '#2b6cb0', who: ['bunny', 'owl'] },
+    pages: [
+      {
+        text: 'Pip the bunny had the longest ears in the whole class. But sometimes his ears were busy wiggling, instead of listening.',
+        bg: 'classroom', cast: [{ who: 'owl', x: 0.2, expr: 'happy', acc: ['glasses'] }, { who: 'bunny', x: 0.52, pose: 'held', expr: 'happy' }, { who: 'puppy', x: 0.8, expr: 'happy' }],
+      },
+      {
+        text: '"Today we will make paper boats," said Teacher Olive. "First, fold the paper in half. Then..." But Pip was already folding. Flip, flap, fold!',
+        bg: 'classroom', cast: [{ who: 'owl', x: 0.2, pose: 'wave', expr: 'happy', acc: ['glasses'] }, { who: 'bunny', x: 0.56, pose: 'held', expr: 'happy', hold: 'paperboat' }],
+      },
+      {
+        text: 'Pip was so busy chatting with Biscuit that he missed the rest. "Fold the corners down," said Olive, "and press every edge tight."',
+        bg: 'classroom', cast: [{ who: 'owl', x: 0.18, pose: 'wave', expr: 'normal', acc: ['glasses'] }, { who: 'bunny', x: 0.54, pose: 'wave', expr: 'happy', flip: true }, { who: 'puppy', x: 0.8, expr: 'happy' }],
+      },
+      {
+        text: 'Outside, everyone put their boats in a big puddle. Kai\'s boat floated. Nina\'s boat floated. Pip\'s boat went glub, glub, glub.',
+        bg: 'meadow', cast: [{ who: 'kai', x: 0.12, expr: 'happy' }, { who: 'nina', x: 0.3, expr: 'happy' }, { who: 'bunny', x: 0.88, expr: 'surprised' }], props: [{ id: 'puddle', x: 0.6, y: 0.97, size: 2.5 }, { id: 'paperboat', x: 0.48, y: 0.93, size: 1.5, color: '#ffd36b' }, { id: 'paperboat', x: 0.72, y: 0.94, size: 1.5, color: '#9fd6ff' }, { id: 'paperboat', x: 0.6, y: 0.97, size: 1.5, color: 'sunk' }],
+      },
+      {
+        text: 'Pip\'s ears drooped. "Why did mine sink?" Teacher Olive smiled kindly. "Did you hear all of the steps?" Pip shook his head.',
+        bg: 'meadow', cast: [{ who: 'bunny', x: 0.4, expr: 'sad' }, { who: 'owl', x: 0.7, expr: 'happy', acc: ['glasses'] }], props: [{ id: 'puddle', x: 0.16, y: 0.97, size: 1.4 }, { id: 'paperboat', x: 0.16, y: 0.97, size: 1.3, color: 'sunk' }],
+      },
+      {
+        text: 'Olive smiled. "Good listeners use their eyes to watch, their ears to hear, and their mouths to stay quiet."',
+        bg: 'classroom', cast: [{ who: 'owl', x: 0.3, pose: 'wave', expr: 'happy', acc: ['glasses'] }, { who: 'bunny', x: 0.64, expr: 'normal' }],
+      },
+      {
+        text: 'So Pip tried again. His eyes watched, his ears listened, and his mouth stayed zipped. Fold, press, fold!',
+        bg: 'classroom', cast: [{ who: 'owl', x: 0.2, expr: 'happy', acc: ['glasses'] }, { who: 'bunny', x: 0.52, pose: 'held', expr: 'happy', hold: 'paperboat' }], props: [{ id: 'sparkles', x: 0.52, y: 0.25, size: 0.6 }],
+      },
+      {
+        text: 'Pip\'s new boat sailed all the way across the puddle. "Listening really works!" he cheered, and his ears did a happy wiggle.',
+        bg: 'meadow', cast: [{ who: 'bunny', x: 0.22, pose: 'held', expr: 'happy' }, { who: 'owl', x: 0.84, expr: 'happy', acc: ['glasses'] }], props: [{ id: 'puddle', x: 0.54, y: 0.97, size: 2.4 }, { id: 'paperboat', x: 0.6, y: 0.94, size: 1.7, color: '#ff9ec7' }, { id: 'confetti', x: 0.5, y: 0.25, size: 0.7 }],
+      },
+    ],
+  },
+  {
+    id: 'biscuit-waits-his-turn',
+    title: 'Biscuit Waits His Turn',
+    kind: 'book',
+    moral: 'Waiting your turn is fair and kind. Your turn always comes, and waiting with friends can be fun too.',
+    cover: { bg: '#e9ffd9', color: '#3a8a2a', who: ['puppy', 'penguin', 'kitty'] },
+    pages: [
+      {
+        text: 'Biscuit the puppy loved the playground. He loved the swings and the sandbox. But most of all, he loved the big red slide.',
+        bg: 'playground', cast: [{ who: 'puppy', x: 0.4, pose: 'wave', expr: 'happy' }],
+      },
+      {
+        text: 'There was a long line for the slide. Pebble, Pepper, and Puddle were all waiting. Biscuit zoomed right to the front!',
+        bg: 'playground', cast: [{ who: 'duck', x: 0.3, expr: 'surprised' }, { who: 'kitty', x: 0.46, expr: 'surprised' }, { who: 'penguin', x: 0.62, expr: 'surprised' }, { who: 'puppy', x: 0.76, pose: 'held', expr: 'happy' }],
+      },
+      {
+        text: '"Hey, no fair!" said Pepper. "We were here first," said Puddle. Everyone grumbled, and the slide wasn\'t fun anymore.',
+        bg: 'playground', cast: [{ who: 'duck', x: 0.3, expr: 'mad' }, { who: 'kitty', x: 0.46, expr: 'mad' }, { who: 'penguin', x: 0.62, expr: 'sad' }, { who: 'puppy', x: 0.76, expr: 'surprised' }],
+      },
+      {
+        text: 'Biscuit\'s tail drooped. Then Pebble said, "Waiting is hard. But we can make it fun. Want to play I Spy while we wait?"',
+        bg: 'playground', cast: [{ who: 'puppy', x: 0.4, expr: 'sad' }, { who: 'penguin', x: 0.62, pose: 'wave', expr: 'happy' }],
+      },
+      {
+        text: 'So Biscuit went to the very back of the line. "I spy something yellow," said Pebble. "The sun!" guessed Biscuit.',
+        bg: 'playground', cast: [{ who: 'puppy', x: 0.3, pose: 'wave', expr: 'happy' }, { who: 'penguin', x: 0.46, expr: 'happy' }, { who: 'duck', x: 0.6, expr: 'happy' }, { who: 'kitty', x: 0.74, expr: 'happy' }],
+      },
+      {
+        text: 'While he waited, Biscuit cheered for his friends. "Go, Pepper! Wow, Puddle, what a zoom!"',
+        bg: 'playground', cast: [{ who: 'puppy', x: 0.2, pose: 'held', expr: 'happy' }, { who: 'penguin', x: 0.36, expr: 'happy' }, { who: 'duck', x: 0.5, pose: 'held', expr: 'happy' }, { who: 'kitty', x: 0.66, y: 0.56, size: 0.8, pose: 'sit', expr: 'happy', ride: 'sliding' }],
+      },
+      {
+        text: 'And then... it was Biscuit\'s turn! He climbed up high and zoomed down. Whee! It felt even better because he had waited.',
+        bg: 'playground', cast: [{ who: 'penguin', x: 0.2, pose: 'wave', expr: 'happy' }, { who: 'duck', x: 0.34, expr: 'happy' }, { who: 'kitty', x: 0.48, pose: 'held', expr: 'happy' }, { who: 'puppy', x: 0.66, y: 0.56, size: 0.8, pose: 'sit', expr: 'happy', ride: 'sliding' }],
+      },
+      {
+        text: 'After that, Biscuit always waited for his turn. And waiting with friends, he found, could be almost as fun as sliding.',
+        bg: 'playground', cast: [{ who: 'puppy', x: 0.24, expr: 'happy' }, { who: 'penguin', x: 0.4, expr: 'happy' }, { who: 'kitty', x: 0.56, expr: 'happy' }, { who: 'duck', x: 0.72, expr: 'happy' }], props: [{ id: 'hearts', x: 0.48, y: 0.26, size: 0.6 }],
+      },
+    ],
+  },
+  {
+    id: 'embers-big-mad-feeling',
+    title: "Ember's Big Mad Feeling",
+    kind: 'book',
+    moral: 'Big feelings are okay. When you feel mad, take slow breaths, count to five, and use your words to say how you feel.',
+    cover: { bg: '#ffd9cc', color: '#c2410c', who: ['dragon', 'owl'] },
+    pages: [
+      {
+        text: 'Ember the dragon was building the tallest block tower ever. One block, two blocks, three blocks... nine blocks high!',
+        bg: 'cave', cast: [{ who: 'dragon', x: 0.3, pose: 'held', expr: 'happy' }], props: [{ id: 'blocks', x: 0.58 }],
+      },
+      {
+        text: 'Then her tail gave a tiny swish. Crash! The tower tumbled down, and blocks bounced all over the floor.',
+        bg: 'cave', cast: [{ who: 'dragon', x: 0.28, expr: 'surprised' }], props: [{ id: 'blocks', x: 0.62, color: 'fallen', size: 0.9 }],
+      },
+      {
+        text: 'Ember felt a hot, fizzy feeling. Her cheeks went red, and her nose went puff, puff, puff. Little clouds of steam came out!',
+        bg: 'cave', cast: [{ who: 'dragon', x: 0.42, expr: 'mad' }], props: [{ id: 'steam', x: 0.42, y: 0.4 }, { id: 'blocks', x: 0.62, color: 'fallen', size: 0.7 }],
+      },
+      {
+        text: '"I\'m so mad!" Ember roared, and she stomped her feet. Stomp, stomp, stomp! Olive the owl poked her head into the cave.',
+        bg: 'cave', cast: [{ who: 'dragon', x: 0.36, pose: 'held', expr: 'mad' }, { who: 'owl', x: 0.84, expr: 'surprised' }], props: [{ id: 'steam', x: 0.36, y: 0.36 }, { id: 'blocks', x: 0.6, color: 'fallen', size: 0.6 }],
+      },
+      {
+        text: '"Big feelings are okay," Olive said softly. "Let\'s help that mad feeling get smaller. First, pretend to smell a flower."',
+        bg: 'cave', cast: [{ who: 'dragon', x: 0.34, expr: 'mad' }, { who: 'owl', x: 0.68, expr: 'happy', hold: 'flower' }],
+      },
+      {
+        text: 'Ember breathed in slowly, like smelling a flower. Then she breathed out slowly, like blowing out a candle. Whoooo.',
+        bg: 'cave', cast: [{ who: 'dragon', x: 0.38, pose: 'sit', expr: 'normal' }, { who: 'owl', x: 0.7, pose: 'sit', expr: 'happy' }], props: [{ id: 'wind', x: 0.56, y: 0.5, size: 0.4 }],
+      },
+      {
+        text: 'She did it again, and counted to five. One, two, three, four, five. The hot, fizzy feeling began to melt away.',
+        bg: 'cave', cast: [{ who: 'dragon', x: 0.4, pose: 'sit', expr: 'happy' }, { who: 'owl', x: 0.7, pose: 'sit', expr: 'happy' }], props: [{ id: 'sparkles', x: 0.4, y: 0.25, size: 0.6 }],
+      },
+      {
+        text: '"I felt mad because my tower fell," Ember said. "Thank you for telling me," said Olive. "Let\'s build it again, together!"',
+        bg: 'cave', cast: [{ who: 'dragon', x: 0.28, pose: 'held', expr: 'happy' }, { who: 'owl', x: 0.8, pose: 'held', expr: 'happy' }], props: [{ id: 'blocks', x: 0.54 }, { id: 'hearts', x: 0.54, y: 0.18, size: 0.6 }],
+      },
+    ],
+  },
+  {
+    id: 'ruby-the-super-helper',
+    title: 'Ruby the Super Helper',
+    kind: 'book',
+    moral: 'When everyone helps at home, the work gets done faster, and there is more time for fun together.',
+    cover: { bg: '#fde2f3', color: '#b0307a', who: ['mom', 'ruby', 'dad'] },
+    pages: [
+      {
+        text: 'Saturday at Ruby\'s house was very busy. Mom was washing dishes. Dad was sweeping. And the laundry basket was piled to the top.',
+        bg: 'kitchen', cast: [{ who: 'mom', x: 0.18, expr: 'normal' }, { who: 'dad', x: 0.44, expr: 'normal', hold: 'broom' }, { who: 'ruby', x: 0.86, expr: 'normal' }], props: [{ id: 'laundry', x: 0.66, size: 1.3 }],
+      },
+      {
+        text: '"When can we play?" asked Ruby. "When the chores are done," said Dad. Ruby had an idea, and put on her cape. "Super Helper is here!"',
+        bg: 'kitchen', cast: [{ who: 'dad', x: 0.26, expr: 'surprised', hold: 'broom' }, { who: 'ruby', x: 0.6, pose: 'held', expr: 'happy', acc: ['cape'] }], props: [{ id: 'sparkles', x: 0.6, y: 0.3, size: 0.7 }],
+      },
+      {
+        text: 'First, she sorted the laundry. Stripy socks with stripy socks, and spotty socks with spotty socks. One sock was hiding in a sleeve. Sneaky sock!',
+        bg: 'bedroom', cast: [{ who: 'ruby', x: 0.38, pose: 'held', expr: 'happy', acc: ['cape'], hold: 'socks' }], props: [{ id: 'laundry', x: 0.64, size: 1.5 }],
+      },
+      {
+        text: 'Next, she watered the plants. Not too much, and not too little. The flowers looked like they were saying thank you.',
+        bg: 'garden', cast: [{ who: 'ruby', x: 0.34, expr: 'happy', acc: ['cape'], hold: 'wateringcan' }], props: [{ id: 'flowers', x: 0.6, y: 0.95 }, { id: 'flowers', x: 0.78, y: 0.97, color: '#ff9a6b' }],
+      },
+      {
+        text: 'Then she set the table. A plate, a fork, and a cup for everyone. She even folded the napkins into little hats.',
+        bg: 'kitchen', cast: [{ who: 'ruby', x: 0.16, pose: 'held', expr: 'happy', acc: ['cape'] }], props: [{ id: 'settable', x: 0.6, size: 1.15 }],
+      },
+      {
+        text: 'Mom and Dad stopped and stared. "Wow! Who did all this?" Ruby put her hands on her hips. "Super Helper did!"',
+        bg: 'kitchen', cast: [{ who: 'mom', x: 0.18, expr: 'surprised' }, { who: 'ruby', x: 0.5, pose: 'wave', expr: 'happy', acc: ['cape'] }, { who: 'dad', x: 0.82, expr: 'surprised' }], props: [{ id: 'sparkles', x: 0.5, y: 0.28, size: 0.7 }],
+      },
+      {
+        text: 'With everyone helping, the chores were done before lunch. "Now we have time to play," said Mom. "What should we do?"',
+        bg: 'town', cast: [{ who: 'mom', x: 0.28, pose: 'wave', expr: 'happy' }, { who: 'ruby', x: 0.5, pose: 'held', expr: 'happy', acc: ['cape'] }, { who: 'dad', x: 0.72, expr: 'happy' }],
+      },
+      {
+        text: 'They went to the park and flew a kite together. "Being a Super Helper is the best," said Ruby. "And the most fun!"',
+        bg: 'meadow', cast: [{ who: 'mom', x: 0.2, pose: 'wave', expr: 'happy' }, { who: 'dad', x: 0.42, expr: 'happy' }, { who: 'ruby', x: 0.86, pose: 'held', expr: 'happy', acc: ['cape'] }], props: [{ id: 'kite', x: 0.66, y: 0.2, color: '#ff9ec7' }],
+      },
+    ],
+  },
+];
+
+const MORE_MOVIES: Story[] = [
+  {
+    id: 'pebbles-brave-checkup',
+    title: "Pebble's Brave Checkup",
+    kind: 'movie',
+    moral: 'Doctors help keep us healthy. It\'s okay to feel scared, and being brave means taking a deep breath and trying.',
+    cover: { bg: '#d4f5ef', color: '#127a6a', who: ['penguin', 'elephant'] },
+    pages: [
+      {
+        text: 'Today was Pebble the penguin\'s checkup at the doctor. His flippers felt all fluttery. "What if it\'s scary?" he whispered.',
+        bg: 'town', cast: [{ who: 'penguin', x: 0.34, size: 1.2, tint: '#8f86c4', expr: 'happy', acc: ['bow'] }, { who: 'penguin', x: 0.56, expr: 'surprised' }],
+      },
+      {
+        text: 'In the waiting room, there was a fish tank. A little orange fish swam up and blew a bubble at Pebble. Blub!',
+        bg: 'clinic', cast: [{ who: 'penguin', x: 0.3, expr: 'surprised' }, { who: 'penguin', x: 0.52, size: 1.2, tint: '#8f86c4', expr: 'happy', acc: ['bow'] }], props: [{ id: 'bubbles', x: 0.2, y: 0.56, size: 0.6 }],
+      },
+      {
+        text: '"Hello, Pebble!" said Doctor Peanut, the elephant. "Today I\'ll check that you\'re growing big and strong. I\'ll tell you everything before I do it."',
+        bg: 'clinic', cast: [{ who: 'penguin', x: 0.16, size: 1.2, tint: '#8f86c4', expr: 'happy', acc: ['bow'] }, { who: 'penguin', x: 0.36, expr: 'normal' }, { who: 'elephant', x: 0.66, pose: 'wave', expr: 'happy', acc: ['stethoscope'] }],
+      },
+      {
+        text: 'First, Pebble stood on the scale. "Look how much you\'ve grown!" said Doctor Peanut. Pebble stood up extra tall.',
+        bg: 'clinic', cast: [{ who: 'elephant', x: 0.3, expr: 'happy', acc: ['stethoscope'] }, { who: 'penguin', x: 0.53, y: 0.83, pose: 'held', expr: 'happy' }], props: [{ id: 'scale', x: 0.53 }, { id: 'sparkles', x: 0.53, y: 0.2, size: 0.5 }],
+      },
+      {
+        text: 'Next came the stethoscope. "It might feel a little cold," said the doctor. Thump, thump, thump! "That\'s your strong, happy heart."',
+        bg: 'clinic', cast: [{ who: 'elephant', x: 0.58, pose: 'held', expr: 'happy', hold: 'stethoscope' }, { who: 'penguin', x: 0.86, y: 0.57, pose: 'sit', expr: 'surprised' }], props: [{ id: 'hearts', x: 0.86, y: 0.2, size: 0.5 }],
+      },
+      {
+        text: '"Now open wide, and say ahh!" Pebble opened his beak as wide as a treasure chest. "Ahhhhh!"',
+        bg: 'clinic', cast: [{ who: 'elephant', x: 0.6, expr: 'happy', acc: ['stethoscope'] }, { who: 'penguin', x: 0.86, y: 0.57, pose: 'sit', expr: 'surprised' }],
+      },
+      {
+        text: 'Then it was time for a quick little poke, to help his body stay healthy. Pebble\'s tummy flipped. "I\'m scared," he whispered.',
+        bg: 'clinic', cast: [{ who: 'penguin', x: 0.4, size: 1.2, tint: '#8f86c4', expr: 'normal', acc: ['bow'] }, { who: 'elephant', x: 0.62, expr: 'normal', acc: ['stethoscope'] }, { who: 'penguin', x: 0.86, y: 0.57, pose: 'sit', expr: 'sad' }],
+      },
+      {
+        text: 'Mama gave him a big hug. "It\'s okay to feel scared," she said. "Squeeze my flipper, and let\'s count to three together."',
+        bg: 'clinic', cast: [{ who: 'penguin', x: 0.4, size: 1.2, tint: '#8f86c4', pose: 'held', expr: 'happy', acc: ['bow'] }, { who: 'penguin', x: 0.58, pose: 'held', expr: 'normal' }], props: [{ id: 'hearts', x: 0.49, y: 0.28, size: 0.6 }],
+      },
+      {
+        text: '"One, two, three!" Pinch! "Is that it?" asked Pebble. "All done!" said Doctor Peanut. It was quicker than a sneeze.',
+        bg: 'clinic', cast: [{ who: 'elephant', x: 0.28, pose: 'wave', expr: 'happy', acc: ['stethoscope'] }, { who: 'penguin', x: 0.54, expr: 'surprised' }, { who: 'penguin', x: 0.84, size: 1.2, tint: '#8f86c4', expr: 'happy', acc: ['bow'] }],
+      },
+      {
+        text: 'Pebble got a shiny star sticker for being so brave. "My tummy was fluttery, but I did it!" he said proudly.',
+        bg: 'clinic', cast: [{ who: 'elephant', x: 0.24, expr: 'happy', acc: ['stethoscope'] }, { who: 'penguin', x: 0.5, pose: 'held', expr: 'happy', hold: 'sticker' }, { who: 'penguin', x: 0.8, size: 1.2, tint: '#8f86c4', expr: 'happy', acc: ['bow'] }], props: [{ id: 'confetti', x: 0.5, y: 0.25, size: 0.8 }],
+      },
+      {
+        text: 'On the way home, Pebble waddled like a hero. "Next time," he said, "I\'ll help my little friends feel brave too!"',
+        bg: 'town', cast: [{ who: 'penguin', x: 0.32, size: 1.2, tint: '#8f86c4', expr: 'happy', acc: ['bow'] }, { who: 'penguin', x: 0.56, pose: 'wave', expr: 'happy', acc: ['medal'] }], props: [{ id: 'stars', x: 0.56, y: 0.22, size: 0.5 }],
+      },
+    ],
+  },
+  {
+    id: 'zoes-magic-crayons',
+    title: "Zoe's Magic Crayons",
+    kind: 'movie',
+    moral: 'Your imagination is a kind of magic. With an idea and a crayon, you can make almost anything.',
+    cover: { bg: '#fff3d6', color: '#7a3fc1', who: ['zoe', 'dragon'], tints: ['', '#ffb3d9'] },
+    pages: [
+      {
+        text: 'It was a rainy day, so Zoe couldn\'t play outside. No swings, no slide, and no puddle jumping. "There\'s nothing to do," she sighed.',
+        bg: 'bedroomrain', cast: [{ who: 'zoe', x: 0.46, expr: 'sad' }],
+      },
+      {
+        text: 'Then she found a box of crayons under her bed. They were glowing! "Draw something," whispered a crayon. "Anything you can imagine."',
+        bg: 'bedroomrain', cast: [{ who: 'zoe', x: 0.4, pose: 'held', expr: 'surprised' }], props: [{ id: 'crayons', x: 0.6, y: 0.95 }],
+      },
+      {
+        text: 'Zoe drew a door on her wall, with a round purple doorknob. And then... creak! The door swung open.',
+        bg: 'bedroomrain', cast: [{ who: 'zoe', x: 0.28, pose: 'held', expr: 'surprised', hold: 'crayons' }], props: [{ id: 'drawndoor', x: 0.53, y: 0.783, color: 'open' }],
+      },
+      {
+        text: 'Behind the door was a world made of drawings. The trees were scribbly, the sun had a smiley face, and the grass was crayon green.',
+        bg: 'drawn', cast: [{ who: 'zoe', x: 0.42, pose: 'wave', expr: 'happy' }],
+      },
+      {
+        text: '"An adventure needs a friend," said Zoe. So she drew a pink dragon, and it blinked. "Hello! I\'m Doodle!" said the dragon.',
+        bg: 'drawn', cast: [{ who: 'zoe', x: 0.3, pose: 'held', expr: 'happy', hold: 'crayons' }, { who: 'dragon', x: 0.66, tint: '#ffb3d9', pose: 'wave', expr: 'happy' }], props: [{ id: 'sparkles', x: 0.66, y: 0.3, size: 0.7 }],
+      },
+      {
+        text: 'They came to a wide, wiggly river. "How will we cross?" asked Doodle. Zoe thought hard. Then she drew a rainbow bridge!',
+        bg: 'drawn', cast: [{ who: 'zoe', x: 0.16, pose: 'held', expr: 'happy', hold: 'crayons' }, { who: 'dragon', x: 0.86, tint: '#ffb3d9', expr: 'surprised' }], props: [{ id: 'river', x: 0.5, y: 0.9 }, { id: 'rainbowbridge', x: 0.5, y: 0.9 }],
+      },
+      {
+        text: 'Next came a hill so tall that it touched the clouds. Zoe drew a stripy hot air balloon, and up, up, up they floated!',
+        bg: 'drawn', cast: [{ who: 'zoe', x: 0.47, y: 0.705, size: 0.43, pose: 'wave', expr: 'happy' }, { who: 'dragon', x: 0.538, y: 0.705, size: 0.42, tint: '#ffb3d9', expr: 'happy' }], props: [{ id: 'hotairballoon', x: 0.5, y: 0.72, size: 0.86 }],
+      },
+      {
+        text: 'At the top, they met a little cloud with a frown. "I can\'t make rain," it sniffled, "and the flowers down below are so thirsty."',
+        bg: 'drawn', cast: [{ who: 'zoe', x: 0.26, expr: 'surprised' }, { who: 'dragon', x: 0.8, tint: '#ffb3d9', expr: 'sad' }], props: [{ id: 'cloudface', x: 0.54, y: 0.3, size: 1.6, color: 'sad' }],
+      },
+      {
+        text: 'Zoe drew a giant watering can, as big as a bathtub. Doodle helped her pour. Splish, splash! The flowers sprang up and danced.',
+        bg: 'drawn', cast: [{ who: 'zoe', x: 0.2, pose: 'held', expr: 'happy' }, { who: 'dragon', x: 0.42, tint: '#ffb3d9', pose: 'held', expr: 'happy' }], props: [{ id: 'wateringcan', x: 0.62, y: 0.62, size: 2 }, { id: 'pour', x: 0.76, y: 0.42, size: 1.3 }, { id: 'flowers', x: 0.84, y: 0.95 }, { id: 'flowers', x: 0.96, y: 0.97, color: '#ffd36b' }, { id: 'sparkles', x: 0.88, y: 0.6, size: 0.6 }],
+      },
+      {
+        text: 'Then the magic crayon twinkled. "Time to go home," it said. "But you can come back whenever you imagine."',
+        bg: 'drawn', cast: [{ who: 'zoe', x: 0.36, expr: 'normal', hold: 'crayons' }, { who: 'dragon', x: 0.6, tint: '#ffb3d9', pose: 'wave', expr: 'happy' }], props: [{ id: 'drawndoor', x: 0.86, color: 'open' }],
+      },
+      {
+        text: 'Zoe stepped back into her bedroom. The rain had stopped. And on her wall was a tiny drawing of a pink dragon, waving hello.',
+        bg: 'bedroom', cast: [{ who: 'zoe', x: 0.3, pose: 'wave', expr: 'happy' }], props: [{ id: 'drawing', x: 0.53, y: 0.72 }, { id: 'sparkles', x: 0.53, y: 0.5, size: 0.5 }],
+      },
+    ],
+  },
+  {
+    id: 'pips-little-rain-cloud',
+    title: "Pip's Little Rain Cloud",
+    kind: 'movie',
+    moral: 'It\'s okay to feel sad. Telling someone you trust how you feel can make heavy feelings lighter.',
+    cover: { bg: '#cfd8ea', color: '#4a5a8a', who: ['bunny', 'elephant'] },
+    pages: [
+      {
+        text: 'Pip the bunny\'s best friend, Puddle the duck, moved away to a pond far across the hills. Pip waved until she was a tiny dot.',
+        bg: 'meadow', cast: [{ who: 'bunny', x: 0.3, pose: 'wave', expr: 'sad' }, { who: 'duck', x: 0.7, y: 0.68, size: 0.3, pose: 'wave', expr: 'happy' }],
+      },
+      {
+        text: 'The next morning, a little gray rain cloud appeared over Pip\'s head. Drip, drip, drip.',
+        bg: 'meadow', cast: [{ who: 'bunny', x: 0.5, expr: 'sad' }], props: [{ id: 'raincloud', x: 0.5, y: 0.28, size: 1.3 }],
+      },
+      {
+        text: 'Wherever Pip went, the cloud went too. To breakfast. To the playground. It even followed him into the bath!',
+        bg: 'playground', cast: [{ who: 'bunny', x: 0.4, expr: 'sad' }], props: [{ id: 'raincloud', x: 0.4, y: 0.28, size: 1.3 }],
+      },
+      {
+        text: '"Are you okay, Pip?" asked Peanut the elephant. "I\'m fine," said Pip. But his little cloud rained even harder.',
+        bg: 'meadow', cast: [{ who: 'elephant', x: 0.3, expr: 'surprised' }, { who: 'bunny', x: 0.66, expr: 'sad' }], props: [{ id: 'raincloud', x: 0.66, y: 0.27, size: 1.5 }],
+      },
+      {
+        text: 'Pip tried to hide from his cloud. He hid under an umbrella. He hid behind a tree. But the cloud always found him.',
+        bg: 'meadow', cast: [{ who: 'bunny', x: 0.74, expr: 'sad', hold: 'umbrella' }], props: [{ id: 'raincloud', x: 0.7, y: 0.14 }],
+      },
+      {
+        text: 'That night, Pip couldn\'t sleep. His cloud rumbled very softly. "I wish I could tell someone," he whispered.',
+        bg: 'bedroom', time: 'night', cast: [{ who: 'bunny', x: 0.45, pose: 'sit', expr: 'sad' }], props: [{ id: 'raincloud', x: 0.45, y: 0.4, size: 1.2 }],
+      },
+      {
+        text: 'In the morning, Peanut sat down next to him. "You can tell me anything," she said gently. "Even sad things."',
+        bg: 'meadow', cast: [{ who: 'elephant', x: 0.34, pose: 'sit', expr: 'happy' }, { who: 'bunny', x: 0.62, pose: 'sit', expr: 'sad' }], props: [{ id: 'raincloud', x: 0.62, y: 0.4, size: 1.2 }],
+      },
+      {
+        text: 'Pip took a big breath. "I miss Puddle," he said. "I feel sad and lonely, and I didn\'t want anyone to know."',
+        bg: 'meadow', cast: [{ who: 'elephant', x: 0.34, pose: 'sit', expr: 'normal' }, { who: 'bunny', x: 0.62, pose: 'sit', expr: 'sad' }], props: [{ id: 'raincloud', x: 0.62, y: 0.4, size: 1.2 }],
+      },
+      {
+        text: 'Peanut gave him a big, warm hug. "Thank you for telling me," she said. "Feelings get lighter when we share them."',
+        bg: 'meadow', cast: [{ who: 'elephant', x: 0.4, pose: 'held', expr: 'happy' }, { who: 'bunny', x: 0.6, pose: 'held', expr: 'normal' }], props: [{ id: 'raincloud', x: 0.66, y: 0.3, size: 0.7, color: 'happy' }, { id: 'hearts', x: 0.46, y: 0.28, size: 0.6 }],
+      },
+      {
+        text: 'And just like that, the cloud shrank smaller, and smaller. Then a tiny rainbow peeked out!',
+        bg: 'meadow', cast: [{ who: 'elephant', x: 0.3, expr: 'happy' }, { who: 'bunny', x: 0.6, pose: 'held', expr: 'surprised' }], props: [{ id: 'rainbow', x: 0.6, y: 0.4, size: 0.55 }, { id: 'raincloud', x: 0.72, y: 0.3, size: 0.4, color: 'happy' }],
+      },
+      {
+        text: 'Peanut had an idea. Together, they wrote a letter to Puddle, with a drawing of the two of them waving.',
+        bg: 'meadow', cast: [{ who: 'elephant', x: 0.3, expr: 'happy' }, { who: 'bunny', x: 0.62, pose: 'held', expr: 'happy', hold: 'letter' }],
+      },
+      {
+        text: 'A week later, a letter came back. "I miss you too!" it said. Pip\'s cloud was gone, and his heart felt sunny again.',
+        bg: 'meadow', cast: [{ who: 'elephant', x: 0.26, expr: 'happy' }, { who: 'bunny', x: 0.54, pose: 'held', expr: 'happy', hold: 'letter' }], props: [{ id: 'hearts', x: 0.54, y: 0.24, size: 0.7 }, { id: 'sparkles', x: 0.8, y: 0.4, size: 0.6 }],
+      },
+    ],
+  },
+  {
+    id: 'ruby-speaks-up',
+    title: 'Ruby Speaks Up',
+    kind: 'movie',
+    moral: 'When someone is unkind to a friend, you can be brave and speak up. Friends help each other feel safe.',
+    cover: { bg: '#d8eccf', color: '#2f6b3a', who: ['ruby', 'turtle'] },
+    pages: [
+      {
+        text: 'Ruby\'s class went on a nature walk in the forest. Teacher Olive led the way, holding a map.',
+        bg: 'forest', cast: [{ who: 'owl', x: 0.14, expr: 'happy', acc: ['glasses'], hold: 'map' }, { who: 'ruby', x: 0.34, expr: 'happy' }, { who: 'kai', x: 0.52, expr: 'happy' }, { who: 'sam', x: 0.7, expr: 'happy' }, { who: 'turtle', x: 0.88, expr: 'happy' }],
+      },
+      {
+        text: 'Everyone hurried along the path. Everyone except Tully the turtle. He walked slowly, one careful step at a time.',
+        bg: 'forest', cast: [{ who: 'ruby', x: 0.18, pose: 'held', expr: 'happy' }, { who: 'kai', x: 0.36, pose: 'held', expr: 'happy' }, { who: 'sam', x: 0.54, pose: 'held', expr: 'happy' }, { who: 'turtle', x: 0.86, expr: 'normal' }],
+      },
+      {
+        text: '"Hurry up, Slowpoke!" giggled Kai. "Slowpoke, slowpoke!" laughed Sam. Tully tucked his head down low.',
+        bg: 'forest', cast: [{ who: 'kai', x: 0.28, pose: 'wave', expr: 'happy' }, { who: 'sam', x: 0.48, expr: 'happy' }, { who: 'turtle', x: 0.8, size: 0.9, expr: 'sad' }],
+      },
+      {
+        text: 'Ruby felt a funny, wiggly feeling in her tummy. The joke wasn\'t funny to Tully. It was hurting his feelings.',
+        bg: 'forest', cast: [{ who: 'ruby', x: 0.38, expr: 'normal' }, { who: 'turtle', x: 0.74, size: 0.9, expr: 'sad' }],
+      },
+      {
+        text: 'Ruby took a big breath and stepped forward. "Please stop," she said. "That\'s not kind. Tully is our friend."',
+        bg: 'forest', cast: [{ who: 'kai', x: 0.18, expr: 'surprised' }, { who: 'sam', x: 0.36, expr: 'surprised' }, { who: 'ruby', x: 0.6, pose: 'wave', expr: 'normal' }, { who: 'turtle', x: 0.85, size: 0.9, expr: 'sad' }],
+      },
+      {
+        text: 'Kai and Sam looked at Tully\'s sad face. "Oh," said Kai quietly. "We were just being silly. We didn\'t think."',
+        bg: 'forest', cast: [{ who: 'kai', x: 0.28, expr: 'surprised' }, { who: 'sam', x: 0.48, expr: 'normal' }, { who: 'turtle', x: 0.78, size: 0.9, expr: 'sad' }],
+      },
+      {
+        text: '"Sorry, Tully," said Sam. "Sorry," said Kai. Tully peeked up and smiled. "Thank you for saying sorry."',
+        bg: 'forest', cast: [{ who: 'kai', x: 0.22, expr: 'normal' }, { who: 'sam', x: 0.42, expr: 'normal' }, { who: 'turtle', x: 0.66, expr: 'happy' }, { who: 'ruby', x: 0.88, expr: 'happy' }], props: [{ id: 'hearts', x: 0.66, y: 0.3, size: 0.5 }],
+      },
+      {
+        text: 'Then Tully pointed at the ground. "Shh. Look!" Under a leaf sat a tiny shiny beetle, as green as an emerald.',
+        bg: 'forest', cast: [{ who: 'turtle', x: 0.28, pose: 'wave', expr: 'happy' }, { who: 'ruby', x: 0.8, pose: 'held', expr: 'surprised', hold: 'magnifier' }], props: [{ id: 'beetle', x: 0.54, y: 0.92, size: 2.4 }],
+      },
+      {
+        text: '"How did you see that?" asked Sam. Tully smiled. "When you go slowly, you notice all the tiny wonders."',
+        bg: 'forest', cast: [{ who: 'sam', x: 0.26, expr: 'surprised' }, { who: 'turtle', x: 0.68, expr: 'happy' }], props: [{ id: 'beetle', x: 0.46, y: 0.93, size: 2 }],
+      },
+      {
+        text: 'So everyone slowed down. They found a snail, a mushroom like a red umbrella, and a spider web sparkling with dew.',
+        bg: 'forest', cast: [{ who: 'kai', x: 0.1, expr: 'happy' }, { who: 'sam', x: 0.4, expr: 'surprised' }, { who: 'ruby', x: 0.89, pose: 'held', expr: 'happy', hold: 'magnifier' }], props: [{ id: 'snail', x: 0.25, y: 0.95, size: 1.5 }, { id: 'mushroom', x: 0.56, y: 0.95, size: 1.4 }, { id: 'web', x: 0.7, y: 0.56 }],
+      },
+      {
+        text: 'After the walk, Tully walked next to Ruby. "Thank you for speaking up for me," he said. "That\'s what friends do," said Ruby.',
+        bg: 'forest', cast: [{ who: 'ruby', x: 0.38, expr: 'happy' }, { who: 'turtle', x: 0.6, expr: 'happy' }, { who: 'owl', x: 0.86, expr: 'happy', acc: ['glasses'] }], props: [{ id: 'hearts', x: 0.49, y: 0.26, size: 0.7 }],
+      },
+    ],
+  },
+];
+
+export const STORIES: Story[] = [...BOOKS, ...MORE_BOOKS, ...MOVIES, ...MORE_MOVIES];

@@ -6,6 +6,7 @@ import { townLayers } from '../src/art/town';
 import { CHALLENGES } from '../src/data/challenges';
 import { baseLook, randomLook, starterLooks } from '../src/data/looks';
 import { rankVoices, sentences } from '../src/engine/voice';
+import { NEED_KEYS, fill, fullNeeds, neediest, tickNeeds } from '../src/data/needs';
 import { STORIES } from '../src/data/stories';
 import { OLD_PARK_LAYOUT, PARK_LAYOUT, PLACES } from '../src/data/places';
 import { orbitAngle, orbitAt, orbitOf, orbitOpen } from '../src/art/furn/kit';
@@ -158,6 +159,25 @@ describe('story voice', () => {
   it('reads stories a sentence at a time', () => {
     expect(sentences('Pip hopped. "Wow!" said Peanut. And then... squish')).toEqual(['Pip hopped.', '"Wow!"', 'said Peanut.', 'And then...', 'squish']);
     for (const st of STORIES) for (const p of st.pages) expect(sentences(p.text).join(' ').replace(/\s+/g, ' ')).toBe(p.text.replace(/\s+/g, ' ').trim());
+  });
+});
+
+describe('needs', () => {
+  it('drain slowly, never below zero, and only up to 3 hours away counts', () => {
+    const t0 = 1_000_000;
+    const n = fullNeeds(t0);
+    const ten = tickNeeds(n, t0 + 10 * 60 * 1000);
+    expect(ten.food).toBe(75);
+    expect(neediest(ten)).toBeNull();
+    const half = tickNeeds(n, t0 + 30 * 60 * 1000);
+    expect(neediest(half)).toBe('food');
+    const week = tickNeeds(n, t0 + 7 * 24 * 3600 * 1000);
+    const threeHours = tickNeeds(n, t0 + 3 * 3600 * 1000);
+    expect(week).toEqual({ ...threeHours, t: week.t });
+    for (const k of NEED_KEYS) expect(week[k]).toBe(0);
+    expect(fill(week, 'food', 500).food).toBe(100);
+    // a broken save just means everyone is happy
+    expect(tickNeeds(undefined, 5)).toEqual(fullNeeds(5));
   });
 });
 
@@ -320,6 +340,8 @@ describe('challenges', () => {
     for (let k = 0; k < 4; k++) s.scenes.bedroom.items.push({ uid: 9000 + k, def: 'f-sofa-princess', x: 100 * k, y: 700 });
     s.seasonsSeen = [...SEASONS];
     s.songsDone = SONGS.map((x) => x.id);
+    s.stickers = Array.from({ length: 10 }, (_, i) => `s${i}`);
+    s.stats.petFeed = 10;
     while (s.dolls.length < 6) s.dolls.push({ ...s.dolls[0], id: 'x' + s.dolls.length });
     for (const d of s.dolls) d.place = 'bedroom';
     s.dolls[0].look = { ...s.dolls[0].look, lips: '#e0245e', blush: '#ff9db5' };

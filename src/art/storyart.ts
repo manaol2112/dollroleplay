@@ -626,12 +626,144 @@ const pond: BgFn = (A, nt) => {
   return s;
 };
 
+/** A park playground: swings on the left, a sandbox, and a slide tower with a ladder on the right. */
+const playground: BgFn = (A) => {
+  let s = skyG('#8fd3ff', '#eef9ff') + sunG(580, 80, 34, A) + cloudG(250, 90, 0.75, A, 0) + cloudG(990, 70, 0.55, A, 2);
+  s += hillP(380, 50, '#c6eda8', 120) + hillP(415, 34, '#b2e496', 420) + treeG(500, 440, 0.72, '#86d67a', A, 4);
+  s += groundP(450, '#9be07f', '#b4ea96');
+  // swings
+  const sw = '#ff8a5c';
+  s += LN(40, 458, 80, 222, sw, 12) + LN(120, 458, 80, 222, sw, 12) + LN(300, 458, 340, 222, sw, 12) + LN(380, 458, 340, 222, sw, 12) + LN(70, 222, 350, 222, '#e8704a', 12);
+  ([[160, '#7cc8ff', 0], [260, '#ffd36b', 1]] as const).forEach(([x, c, k]) => {
+    const seat = LN(x - 24, 228, x - 24, 392, '#8a7aa8', 3) + LN(x + 24, 228, x + 24, 392, '#8a7aa8', 3) + R(x - 34, 388, 68, 14, 6, c);
+    s += mv(A, seat, aTurn(7, x, 228, 2.6 + k * 0.4, k));
+  });
+  // sandbox
+  s += R(392, 474, 156, 42, 10, '#c9945f') + R(400, 478, 140, 28, 8, '#ffe3a8') + E(440, 488, 18, 6, '#f6d396') + G(at(512, 492, 0.5), PROPS.bucket.draw(undefined, false, 0, { id: 'bucket', x: 0 }));
+  // the slide tower: platform at y 206, ladder rungs every 40 from 250, chute sloping down to the left
+  s += R(784, 150, 16, 308, 6, '#7cb8e8') + R(900, 150, 16, 308, 6, '#7cb8e8') + R(796, 218, 108, 238, 0, '#cfeaff');
+  for (let x = 806; x < 900; x += 20) s += LN(x, 204, x, 166, '#ffffff', 4);
+  s += LN(790, 164, 910, 164, '#ffffff', 5) + P('M766 156 L850 74 L934 156Z', '#ff6f91') + R(762, 148, 176, 14, 7, '#e8455f') + R(776, 200, 148, 18, 7, '#ffd36b');
+  s += LN(828, 218, 828, 456, '#c9945f', 8) + LN(882, 218, 882, 456, '#c9945f', 8);
+  for (const y of [250, 290, 330, 370, 410]) s += R(832, y - 6, 46, 12, 4, '#e0b07a');
+  const chute = 'M788 210 L560 414 Q536 438 498 442 L460 442';
+  s += P(chute, 'none', SK('#e8455f', 34)) + P(chute, 'none', SK('#ff6f91', 22)) + P('M782 201 L554 405 Q530 429 492 433', 'none', SK('#ffffff', 4, op(0.55)));
+  s += grassTufts(16, 470, 595, 37, '#7cc96c') + flowersScatter(8, 520, 592, 131);
+  return s;
+};
+
+/** A friendly doctor's office: a fish tank, a height chart, and an exam bed. */
+const clinic: BgFn = (A, nt) => {
+  let s = R(-10, -10, 1020, 620, 0, '#e8f7f3');
+  for (let x = 20; x < 1020; x += 60) s += R(x, -10, 26, 345, 0, '#ffffff', op(0.35));
+  s += R(-10, 330, 1020, 140, 0, '#cdeee6') + R(-10, 326, 1020, 10, 4, '#ffffff');
+  s += windowG(340, 90, 170, 140, nt, '#ffb6cf', A);
+  s += R(110, 70, 110, 80, 14, '#ffffff') + R(153, 82, 24, 56, 5, '#ff6f91') + R(137, 98, 56, 24, 5, '#ff6f91');
+  // height chart
+  s += R(598, 100, 52, 350, 12, '#ffffff', 'stroke="#ffd36b" stroke-width="4"');
+  for (let k = 0; k < 9; k++) s += LN(600, 140 + k * 36, k % 2 ? 616 : 628, 140 + k * 36, '#7cc8ff', 3) + C(638, 140 + k * 36, 4, PAL[k % PAL.length]);
+  s += P(starD(624, 120, 11, 0.5), '#ffd36b');
+  // heart poster
+  s += R(690, 110, 92, 114, 12, '#ffffff') + P(heartD(736, 150, 24), '#ff6f91') + P('M702 200 L716 200 L723 188 L731 212 L739 194 L746 200 L770 200', 'none', SK('#ff6f91', 3));
+  // fish tank on a cupboard
+  s += R(20, 380, 240, 90, 10, '#ffd1a8') + R(30, 392, 104, 66, 8, '#ffe2c4') + R(146, 392, 104, 66, 8, '#ffe2c4') + C(124, 425, 4, '#c9945f') + C(156, 425, 4, '#c9945f');
+  const tid = uid('tank');
+  let tank = R(36, 250, 208, 130, 10, '#9fe6ff') + E(140, 384, 120, 18, '#f6d396') + C(70, 372, 6, '#ff9ec7') + C(196, 374, 5, '#c99bff');
+  tank += mv(A, P('M70 378 q-10 -26 0 -52 q10 -26 0 -46', 'none', SK('#5fc28a', 8)), aTurn(8, 70, 378, 3)) + mv(A, P('M206 378 q10 -20 0 -40', 'none', SK('#7fd39a', 8)), aTurn(8, 206, 378, 3.4, 1));
+  const fishy = (x: number, y: number, c: string, k: number) =>
+    mv(A, G(at(x, y, 0.55), E(0, 0, 22, 14, c) + P('M18 0 L34 -12 L34 12Z', c) + C(-9, -3, 3.5, '#2d2240')), aMove(70 - k * 30, k * 6, 5 + k, k));
+  tank += fishy(100, 300, '#ffb347', 0) + fishy(160, 336, '#ff8fb1', 1);
+  for (let k = 0; k < 4; k++) tank += A ? `<g>${C(186, 370, 4, 'none', 'stroke="#ffffff" stroke-width="2"')}${aRise(4, -110, 3, k * 0.8)}</g>` : C(186 - k * 3, 360 - k * 26, 3 + k, 'none', 'stroke="#ffffff" stroke-width="2"');
+  s += `<defs><clipPath id="${tid}"><rect x="36" y="250" width="208" height="130" rx="10"/></clipPath></defs><g clip-path="url(#${tid})">${tank}</g>`;
+  s += R(36, 250, 208, 130, 10, 'none', 'stroke="#ffffff" stroke-width="5"') + R(30, 242, 220, 12, 6, '#7cb8e8') + R(50, 262, 16, 90, 8, '#ffffff', op(0.35));
+  // exam bed
+  s += R(800, 388, 12, 84, 5, '#c9cfdd') + R(968, 388, 12, 84, 5, '#c9cfdd') + R(780, 350, 230, 42, 16, '#9fd6ff') + R(780, 340, 230, 18, 9, '#ffffff') + E(960, 334, 40, 15, '#ffffff', 'stroke="#e2e8f0" stroke-width="3"');
+  s += R(716, 432, 62, 40, 8, '#ffd36b') + R(716, 432, 62, 10, 5, '#ffe38f');
+  // tiled floor
+  s += R(-10, 470, 1020, 140, 0, '#f6f2ff');
+  for (let x = -10; x < 1020; x += 70) s += LN(x, 470, x - 30, 610, '#e4def5', 2);
+  for (const y of [500, 540, 585]) s += LN(-10, y, 1010, y, '#e4def5', 2);
+  s += R(-10, 464, 1020, 10, 0, '#ffffff');
+  if (nt) s += R(-10, -10, 1020, 620, 0, '#1d2160', op(0.3));
+  return s;
+};
+
+/** A thick wax-crayon line, with a lighter streak so it looks drawn by hand. */
+const crayon = (d: string, c: string, w: number) => P(d, 'none', SK(c, w, op(0.92))) + P(d, 'none', SK(light(c, 0.4), w * 0.32, `${op(0.7)} transform="translate(1.5 -1.5)"`));
+const crayonCloud = (x: number, y: number, s: number) => {
+  const d = `M${f(x - 70 * s)} ${f(y)} q${f(-10 * s)} ${f(-36 * s)} ${f(28 * s)} ${f(-36 * s)} q${f(14 * s)} ${f(-34 * s)} ${f(50 * s)} ${f(-20 * s)} q${f(34 * s)} ${f(-14 * s)} ${f(46 * s)} ${f(20 * s)} q${f(34 * s)} ${f(6 * s)} ${f(16 * s)} ${f(36 * s)}Z`;
+  return P(d, '#ffffff') + crayon(d, '#8fb4e8', 5);
+};
+const scribbleTree = (x: number, y: number, s: number, c: string) => {
+  const crown = `M${f(x - 60 * s)} ${f(y - 120 * s)} q${f(-26 * s)} ${f(-46 * s)} ${f(20 * s)} ${f(-60 * s)} q${f(16 * s)} ${f(-46 * s)} ${f(62 * s)} ${f(-22 * s)} q${f(48 * s)} ${f(-14 * s)} ${f(50 * s)} ${f(30 * s)} q${f(40 * s)} ${f(22 * s)} ${f(10 * s)} ${f(58 * s)} q${f(-12 * s)} ${f(40 * s)} ${f(-56 * s)} ${f(26 * s)} q${f(-40 * s)} ${f(22 * s)} ${f(-74 * s)} ${f(-6 * s)}Z`;
+  let h = '';
+  for (let k = 0; k < 9; k++) h += `M${f(x - 64 * s + k * 15 * s)} ${f(y - 100 * s)} l${f(30 * s)} ${f(-90 * s)} `;
+  return crayon(`M${f(x - 10 * s)} ${f(y)} L${f(x - 8 * s)} ${f(y - 110 * s)} M${f(x + 10 * s)} ${f(y)} L${f(x + 8 * s)} ${f(y - 110 * s)}`, '#a0663c', 7) +
+    P(`M${f(x - 9 * s)} ${f(y)} L${f(x - 8 * s)} ${f(y - 110 * s)} L${f(x + 8 * s)} ${f(y - 110 * s)} L${f(x + 9 * s)} ${f(y)}Z`, '#d9a06b') + P(crown, c) + P(h, 'none', SK(dark(c, 0.15), 4, op(0.35))) + crayon(crown, dark(c, 0.3), 6);
+};
+/** A world drawn in crayon on paper (for imagination stories). */
+const drawn: BgFn = (A) => {
+  let s = R(-10, -10, 1020, 620, 0, '#fffaf0');
+  for (let y = 36; y < 600; y += 36) s += LN(-10, y, 1010, y, '#dceaff', 1.5);
+  let h = '';
+  for (let x = -300; x < 1060; x += 18) h += `M${x} 340 L${x + 170} 0 `;
+  s += P(h, 'none', SK('#9fd0ff', 6, op(0.4)));
+  // smiley sun
+  let rays = '';
+  for (let k = 0; k < 10; k++) {
+    const a = (k / 10) * Math.PI * 2;
+    rays += `M${f(Math.cos(a) * 62)} ${f(Math.sin(a) * 62)} L${f(Math.cos(a) * 92)} ${f(Math.sin(a) * 92)} `;
+  }
+  const sunFace = C(0, 0, 50, '#ffe066') + crayon('M50 0 A50 50 0 1 1 49 -6', '#ffb703', 6) + C(-17, -10, 5, '#5a3a2a') + C(17, -10, 5, '#5a3a2a') + crayon('M-22 12 Q0 34 22 12', '#e8455f', 5) + E(-30, 8, 8, 5, '#ff9db5', op(0.7)) + E(30, 8, 8, 5, '#ff9db5', op(0.7));
+  s += G(at(830, 110), mv(A, crayon(rays, '#ffb703', 7), aSpin(40)) + sunFace);
+  s += mv(A, crayonCloud(250, 120, 1), aMove(30, 0, 12)) + mv(A, crayonCloud(560, 80, 0.7), aMove(24, 0, 15, 3));
+  const hill = 'M-20 400 Q150 320 330 390 Q520 450 700 370 Q860 320 1020 380';
+  s += P(`${hill} L1020 620 L-20 620Z`, '#d2f5bf') + crayon(hill, '#5fbf6a', 6);
+  // a little crayon house on the hill
+  s += G(at(600, 405), P('M-40 0 L-40 -60 L40 -60 L40 0Z', '#ffd1dc') + crayon('M-40 0 L-40 -60 L40 -60 L40 0Z', '#e8455f', 5) + P('M-52 -58 L0 -100 L52 -58Z', '#ff9a6b') + crayon('M-52 -58 L0 -100 L52 -58Z', '#d9622b', 5) + R(-10, -34, 20, 34, 3, '#c98a58') + R(14, -48, 18, 16, 3, '#bfe9ff') + crayon('M14 -48 h18 v16 h-18Z', '#5a8ad8', 3));
+  s += scribbleTree(110, 452, 1.1, '#8fe07f') + scribbleTree(900, 448, 1.25, '#7fd38a');
+  const ground = 'M-20 455 Q250 440 500 455 Q750 470 1020 450';
+  s += P(`${ground} L1020 620 L-20 620Z`, '#bdeea6') + crayon(ground, '#4fae5a', 6);
+  let g = '';
+  for (let k = 0; k < 40; k++) {
+    const x = rnd(k * 5 + 3) * 1000;
+    const y = 490 + rnd(k * 7) * 100;
+    g += `M${f(x - 8)} ${f(y)} l6 -16 l6 16 l6 -14 `;
+  }
+  s += P(g, 'none', SK('#4fae5a', 3.5, op(0.8)));
+  for (let k = 0; k < 7; k++) {
+    const x = 60 + rnd(k * 13) * 880;
+    const y = 500 + rnd(k * 17) * 80;
+    const c = PAL[k % PAL.length];
+    let pet = '';
+    for (let j = 0; j < 5; j++) pet += C(x + Math.cos(j * 1.2566) * 11, y + Math.sin(j * 1.2566) * 11, 8, c, op(0.85));
+    s += crayon(`M${f(x)} ${f(y + 10)} L${f(x + 2)} ${f(y + 34)}`, '#4fae5a', 4) + pet + C(x, y, 6, '#ffe066');
+  }
+  return s;
+};
+
+/** The bedroom on a rainy day: gray sky and raindrops in the window. */
+const bedroomrain: BgFn = (A, nt) => {
+  let s = bedroom(A, nt);
+  const id = uid('wrain');
+  let r = R(150, 120, 120, 180, 0, '#8796b4', op(0.75)) + C(170, 150, 30, '#a9b4c8') + C(220, 140, 36, '#a9b4c8') + C(262, 156, 28, '#a9b4c8');
+  for (let k = 0; k < 14; k++) {
+    const x = 150 + rnd(k * 3 + 1) * 130;
+    const y = 160 + rnd(k * 5 + 2) * 130;
+    r += A ? `<line x1="${f(x)}" y1="140" x2="${f(x - 4)}" y2="158" stroke="#dfe8f6" stroke-width="3" stroke-linecap="round"><animateTransform attributeName="transform" type="translate" values="0 0;-20 170" ${rep(0.9 + rnd(k) * 0.4, rnd(k * 7))}/></line>` : LN(x, y, x - 4, y + 18, '#dfe8f6', 3);
+  }
+  s += `<defs><clipPath id="${id}"><rect x="152" y="120" width="116" height="180"/></clipPath></defs><g clip-path="url(#${id})">${r}</g>`;
+  s += R(206, 120, 8, 180, 0, '#ffffff') + R(150, 206, 120, 8, 0, '#ffffff');
+  return s;
+};
+
 const BG: Record<string, BgFn> = {
   meadow, forest, beach, ocean, night, bedroom, classroom, kitchen, garden, snow, town, castle, space, stars, farm, stage, rain, library, cave, treehouse, treetop, sunset, pond,
+  playground, clinic, drawn, bedroomrain,
 };
 /** Backgrounds that draw their own night look. */
-const NIGHT_NATIVE = new Set(['night', 'bedroom', 'classroom', 'kitchen', 'library', 'cave', 'pond', 'town', 'space', 'stars']);
-const INDOOR = new Set(['bedroom', 'classroom', 'kitchen', 'library', 'stage', 'cave', 'treetop']);
+const NIGHT_NATIVE = new Set(['night', 'bedroom', 'bedroomrain', 'classroom', 'kitchen', 'library', 'cave', 'pond', 'town', 'space', 'stars', 'clinic']);
+const INDOOR = new Set(['bedroom', 'bedroomrain', 'classroom', 'kitchen', 'library', 'stage', 'cave', 'treetop', 'clinic']);
 export const STORY_BACKGROUNDS = Object.keys(BG);
 
 // ---------------------------------------------------------------- props
@@ -646,6 +778,8 @@ interface PropDef {
   front?: (c: string | undefined) => string;
   /** Has a handle, so the paw is drawn wrapped around it. */
   handle?: boolean;
+  /** Rides that lean the rider over (degrees), like going down a slide. */
+  tilt?: number;
 }
 const PAL = ['#ff6f91', '#7cc8ff', '#ffd36b', '#9be07f', '#c99bff', '#ff9a6b'];
 const apple = (x: number, y: number, r = 14, c = '#ff5a5a') =>
@@ -1165,6 +1299,292 @@ const PROPS: Record<string, PropDef> = {
       return mv(A, t, aTurn(1.5, -300, -24, 3));
     },
   },
+  // ---- added for the second shelf of books and movies
+  duckling: {
+    draw: (_c, A, i) =>
+      mv(A, E(0, -14, 17, 14, '#ffe98a') + E(4, -18, 8, 5, '#ffd84a') + P('M12 -18 L22 -26 L18 -10Z', '#ffd84a') + C(-8, -32, 11, '#ffe98a') + P('M-8 -43 q2 -6 6 -6', 'none', SK('#ffd84a', 2.5)) +
+        C(-11, -34, 2.4, '#2d2240') + C(-10.4, -34.8, 0.8, '#ffffff') + P('M-18 -32 L-27 -30 L-18 -27Z', '#ffa94d') + E(-13, -27, 3, 2, '#ff9db5', op(0.6)) + LN(-4, -2, -6, 2, '#ffa94d', 2.5) + LN(4, -2, 4, 2, '#ffa94d', 2.5), aMove(0, -4, 0.8 + (i % 3) * 0.15, i)),
+    hold: [1.1, -16],
+  },
+  seeds: { draw: () => E(0, -4, 22, 6, '#e8c58a') + [[-12, -8], [-4, -10], [6, -9], [14, -7], [0, -14], [-8, -14], [9, -14]].map(([x, y], k) => E(x, y, 3.5, 2.5, k % 2 ? '#c9945f' : '#f2d98a')).join(''), hold: [2.2, -8] },
+  noodles: {
+    draw: () => {
+      let s = P('M-38 -32 Q-38 0 0 0 Q38 0 38 -32Z', '#7cc8ff') + E(0, -32, 38, 8, '#a9ddff') + E(0, -33, 32, 6, '#fff1c4');
+      for (let k = 0; k < 4; k++) s += P(`M${-24 + k * 14} -32 q4 -14 8 -4 q4 10 8 -6`, 'none', SK('#ffd36b', 4));
+      return s + LN(10, -36, 40, -70, '#c9945f', 4) + LN(18, -36, 50, -66, '#c9945f', 4) + P(heartD(0, -16, 7), '#ffffff', op(0.7));
+    },
+    hold: [1.3, -20],
+  },
+  broccoli: { draw: () => R(-6, -34, 12, 34, 5, '#b6e29a') + C(-13, -40, 12, '#4fa858') + C(12, -42, 13, '#4fa858') + C(0, -54, 14, '#5fbf6a') + C(-5, -58, 4, '#8fdc8a', op(0.8)) + C(10, -46, 3, '#8fdc8a', op(0.8)), hold: [1.6, -20] },
+  dumpling: { draw: () => P('M-24 0 Q-26 -26 0 -28 Q26 -26 24 0Z', '#fff6e8', 'stroke="#ecd9bd" stroke-width="2"') + P('M-12 -24 q2 6 0 10 M-2 -28 q2 6 0 10 M8 -27 q2 6 0 10', 'none', SK('#e8d2b0', 2)) + E(-10, -10, 5, 3, '#ffffff', op(0.7)), hold: [1.6, -12] },
+  mango: { draw: () => P('M-22 0 Q-28 -30 0 -38 Q28 -30 22 0Z', '#ffb03a') + P('M-12 -6 L-12 -30 M0 -4 L0 -34 M12 -6 L12 -30 M-20 -12 L20 -12 M-22 -24 L22 -24', 'none', SK('#ffd27a', 2.5)) + P('M-22 0 Q0 8 22 0', 'none', SK('#7fca7e', 5)), hold: [1.6, -18] },
+  feast: {
+    draw: () =>
+      kidTable(
+        G(at(-30, -132), R(-3, -6, 6, 10, 2, '#b6e29a') + C(-6, -10, 7, '#4fa858') + C(6, -11, 7, '#4fa858') + C(0, -16, 7, '#5fbf6a')) + G(at(-12, -128), R(-2, -4, 4, 6, 2, '#b6e29a') + C(-4, -7, 5, '#4fa858') + C(4, -8, 5, '#5fbf6a')) +
+          [[0, -128], [14, -132], [6, -122]].map(([x, y]) => G(at(x, y), P('M-10 0 Q-11 -11 0 -12 Q11 -11 10 0Z', '#fff6e8', 'stroke="#e8d2b0" stroke-width="1.5"'))).join('') +
+          G(at(32, -126), P('M-9 0 Q-12 -13 0 -16 Q12 -13 9 0Z', '#ffb03a')) + G(at(44, -130), P('M-7 0 Q-9 -10 0 -12 Q9 -10 7 0Z', '#ffc24d')),
+      ),
+  },
+  easel: {
+    draw: (c) => {
+      let s = LN(-56, 0, -18, -268, '#c9945f', 9) + LN(56, 0, 18, -268, '#c9945f', 9) + LN(0, -20, 0, -250, '#b07a50', 7) + R(-80, -112, 160, 12, 5, '#b07a50');
+      s += R(-74, -250, 148, 140, 6, '#ffffff', 'stroke="#ece6f2" stroke-width="3"') + R(-68, -244, 136, 128, 4, '#bfe6ff');
+      s += C(40, -214, 16, '#ffd84a') + R(-68, -150, 136, 34, 0, '#9be07f') + P('M-68 -150 Q-30 -164 0 -150 Q34 -138 68 -152', '#9be07f');
+      s += P('M-50 -200 q10 -12 20 0 q10 -10 18 2', 'none', SK('#ffffff', 5));
+      if (c === 'blob' || c === 'ladybug') s += P('M-14 -196 Q-36 -194 -30 -172 Q-40 -150 -14 -150 Q0 -138 14 -152 Q38 -150 32 -172 Q40 -196 14 -196 Q0 -210 -14 -196Z', '#ff5a5a');
+      if (c === 'blob') s += C(-38, -150, 5, '#ff5a5a') + C(38, -196, 4, '#ff5a5a') + E(10, -136, 4, 7, '#ff5a5a');
+      if (c === 'ladybug') {
+        s += LN(0, -196, 0, -150, '#2d2240', 3) + C(-14, -184, 5, '#2d2240') + C(14, -182, 5, '#2d2240') + C(-16, -164, 5, '#2d2240') + C(16, -162, 5, '#2d2240');
+        s += E(0, -198, 14, 10, '#2d2240') + P('M-6 -206 q-8 -14 -14 -14 M6 -206 q8 -14 14 -14', 'none', SK('#2d2240', 2.5)) + C(-20, -220, 3, '#2d2240') + C(20, -220, 3, '#2d2240') + C(-5, -200, 2.5, '#ffffff') + C(5, -200, 2.5, '#ffffff') + P('M-5 -194 Q0 -190 5 -194', 'none', SK('#ffffff', 1.8));
+        s += P('M-30 -176 l-10 -4 M-32 -164 l-10 0 M-30 -152 l-10 4 M30 -176 l10 -4 M32 -164 l10 0 M30 -152 l10 4', 'none', SK('#2d2240', 2.5));
+      }
+      return s;
+    },
+  },
+  brush: { draw: (c = '#ff5a5a') => R(-3, -72, 6, 60, 3, '#c9945f') + R(-4.5, -16, 9, 9, 2, '#c9cfdd') + P('M-4.5 -7 Q0 16 4.5 -7Z', c), hold: [1.6, -40], handle: true },
+  paints: {
+    draw: (c) => {
+      const spill = c === 'spill';
+      let s = '';
+      ['#ff5a5a', '#4f9dff', '#ffd84a', '#5fbf6a'].forEach((col, k) => {
+        const x = -54 + k * 36;
+        if (spill && k === 0) s += E(-66, -6, 34, 8, col) + C(-96, -6, 5, col) + G(at(x - 8, -10, 1, -70), R(-13, -14, 26, 24, 6, '#ffffff', op(0.85)) + R(-13, -14, 26, 6, 3, col));
+        else s += R(x - 13, -26, 26, 26, 6, '#ffffff', op(0.85)) + R(x - 13, -26, 26, 10, 4, col) + E(x, -26, 13, 4, light(col, 0.2));
+      });
+      return s;
+    },
+  },
+  toys: {
+    draw: (c) => {
+      const block = (x: number, y: number, col: string, r: number, ch: string) => G(at(x, y, 1, r), R(-20, -40, 40, 40, 6, col) + R(-14, -34, 28, 28, 4, light(col, 0.35)) + T(0, -11, ch, 22, dark(col, 0.25)));
+      const car = (x: number, y: number, r: number) => G(at(x, y, 1, r), R(-40, -34, 80, 26, 10, '#ff6f91') + P('M-22 -34 Q-18 -54 4 -54 Q22 -54 26 -34Z', '#ff8fab') + R(-12, -50, 26, 14, 4, '#bfe9ff') + C(-22, -8, 10, '#3a2f52') + C(22, -8, 10, '#3a2f52') + C(-22, -8, 4, '#c9cfdd') + C(22, -8, 4, '#c9cfdd'));
+      const dino = (x: number, y: number, r: number) => G(at(x, y, 1, r), E(0, -26, 34, 22, '#7fd36f') + P('M26 -32 Q50 -40 52 -64 Q64 -66 64 -54 Q56 -30 30 -18Z', '#7fd36f') + C(58, -60, 3, '#2d2240') + P('M-30 -26 Q-54 -22 -66 -4 Q-44 -12 -26 -14Z', '#7fd36f') + [-16, -2, 12].map((t) => P(`M${t - 7} -44 L${t} -58 L${t + 7} -44Z`, '#ffd36b')).join('') + R(-22, -12, 10, 12, 4, '#6fc06a') + R(12, -12, 10, 12, 4, '#6fc06a'));
+      const ball = (x: number, y: number) => G(at(x, y, 0.8), C(0, -30, 30, '#ffffff') + P('M0 -30 L0 -60 A30 30 0 0 1 26 -45Z', '#ff6f91') + P('M0 -30 L26 -15 A30 30 0 0 1 0 0Z', '#7cc8ff') + P('M0 -30 L-26 -15 A30 30 0 0 1 -26 -45Z', '#ffd36b'));
+      if (c === 'scatter')
+        return block(-300, 0, '#7cc8ff', 18, 'A') + car(-150, 0, -6) + block(-40, 0, '#ffd36b', -14, 'B') + dino(90, 0, 4) + ball(230, 0) + block(320, 0, '#ff9ec7', 10, 'C') + R(-240, -8, 50, 10, 4, '#c99bff') + R(170, -8, 40, 10, 4, '#9be07f');
+      let s = P('M-180 0 Q-170 -120 -60 -150 Q0 -190 70 -150 Q170 -120 180 0Z', '#e2d2ff') + P('M-150 -40 Q-120 -110 -40 -130 M60 -140 Q130 -110 150 -40', 'none', SK('#ffffff', 5, op(0.5)));
+      s += block(-130, 0, '#7cc8ff', -8, 'A') + block(-96, -6, '#ffd36b', 12, 'B') + dino(-40, -60, -10) + block(110, 0, '#ff9ec7', 6, 'C') + car(40, -4, 4) + block(140, -40, '#9be07f', -16, 'D');
+      s += ball(-120, -60) + block(-10, -100, '#ff9a6b', 20, 'E') + car(80, -96, -14) + block(30, -150, '#7cc8ff', -6, 'F') + dino(-90, -120, 16) + block(120, -88, '#c99bff', 10, 'G');
+      s += R(-160, -24, 60, 14, 5, '#ff6f91') + R(130, -130, 40, 12, 4, '#ffd36b') + C(-30, -170, 10, '#ff6f91') + C(-24, -164, 4, '#fff', op(0.6));
+      return s;
+    },
+  },
+  toybox: {
+    draw: () =>
+      P('M-74 -96 L-84 -150 L84 -150 L74 -96Z', '#ff8fb1') + R(-60, -132, 22, 40, 5, '#7cc8ff', 'transform="rotate(-12 -49 -112)"') + G(at(-6, -112), E(0, 0, 18, 14, '#7fd36f') + P('M10 -6 Q24 -14 24 -30 Q32 -30 32 -22 Q28 -6 14 2Z', '#7fd36f') + C(28, -26, 2.5, '#2d2240')) +
+      R(30, -126, 30, 32, 6, '#ffd36b') + C(50, -100, 12, '#ff6f91') + R(-74, -100, 148, 100, 12, '#ff9ec7') + R(-64, -88, 128, 76, 8, '#ffb6d2') + P(starD(-30, -50, 14, 0.5), '#ffffff', op(0.85)) + P(heartD(26, -50, 14), '#ffffff', op(0.85)) + R(-80, -104, 160, 14, 7, '#ff8fb1'),
+  },
+  teddy: {
+    draw: () =>
+      C(-18, -78, 10, '#c99263') + C(18, -78, 10, '#c99263') + C(-18, -78, 5, '#f0bfa0') + C(18, -78, 5, '#f0bfa0') + E(0, -28, 24, 26, '#c99263') + E(0, -24, 14, 16, '#f2d7b8') + C(-24, -36, 9, '#c99263') + C(24, -36, 9, '#c99263') + C(-12, -4, 10, '#c99263') + C(12, -4, 10, '#c99263') +
+      C(0, -64, 22, '#c99263') + E(0, -56, 10, 8, '#f2d7b8') + E(0, -60, 4, 3, '#5a3a2e') + C(-8, -68, 3.5, '#3a2f52') + C(8, -68, 3.5, '#3a2f52') + C(-8, -68, 1.2, '#ffffff') + C(8, -68, 1.2, '#ffffff') + P('M-4 -53 Q0 -50 4 -53', 'none', SK('#5a3a2e', 1.8)) + R(-10, -46, 20, 7, 3, '#ff6f91') + C(0, -42, 4, '#ff6f91'),
+    hold: [1.2, -36],
+  },
+  toycar: { draw: () => R(-40, -34, 80, 26, 10, '#ff6f91') + P('M-22 -34 Q-18 -54 4 -54 Q22 -54 26 -34Z', '#ff8fab') + R(-12, -50, 26, 14, 4, '#bfe9ff') + C(-22, -8, 10, '#3a2f52') + C(22, -8, 10, '#3a2f52') + C(-22, -8, 4, '#c9cfdd') + C(22, -8, 4, '#c9cfdd'), hold: [1.1, -24] },
+  toydino: { draw: () => E(0, -26, 34, 22, '#7fd36f') + P('M26 -32 Q50 -40 52 -64 Q64 -66 64 -54 Q56 -30 30 -18Z', '#7fd36f') + C(58, -60, 3, '#2d2240') + P('M-30 -26 Q-54 -22 -66 -4 Q-44 -12 -26 -14Z', '#7fd36f') + [-16, -2, 12].map((t) => P(`M${t - 7} -44 L${t} -58 L${t + 7} -44Z`, '#ffd36b')).join('') + R(-22, -12, 10, 12, 4, '#6fc06a') + R(12, -12, 10, 12, 4, '#6fc06a'), hold: [1.1, -26] },
+  blocks: {
+    draw: (c, A, i) => {
+      const cols = ['#ff6f91', '#7cc8ff', '#ffd36b', '#9be07f', '#c99bff', '#ff9a6b'];
+      const one = (x: number, y: number, r: number, k: number) => G(at(x, y, 1, r), R(-24, -36, 48, 36, 6, cols[k % 6]) + R(-17, -29, 34, 22, 4, light(cols[k % 6], 0.35)) + P(starD(0, -18, 7, 0.5), '#ffffff', op(0.8)));
+      let s = '';
+      if (c === 'fallen') {
+        [[-180, 0, 12], [-120, 0, -20], [-60, 0, 4], [-10, 0, 30], [60, 0, -8], [120, 0, 16], [180, 0, -26], [-90, -36, -6], [90, -36, 10], [240, 0, 40]].forEach(([x, y, r], k) => (s += one(x, y, r, k)));
+        return s;
+      }
+      const n = c === 'small' ? 4 : 9;
+      for (let k = 0; k < n; k++) s += one(Math.sin(k * 1.7) * 5, -k * 36, Math.sin(k * 2.3) * 3, k);
+      return mv(A, s, aTurn(1, 0, 0, 2.6, i));
+    },
+  },
+  steam: {
+    draw: (_c, A) => [[-40, 0, 16], [0, -20, 20], [40, -4, 15]].map(([x, y, r], k) => {
+      const puff = C(x, y, r, '#ffffff', op(0.9)) + C(x - r * 0.6, y + r * 0.3, r * 0.6, '#ffffff', op(0.9)) + C(x + r * 0.6, y + r * 0.3, r * 0.6, '#ffffff', op(0.9)) + C(x, y, r, 'none', SK('#c9cfdd', 2.5));
+      return A ? `<g>${puff}${aRise(k * 8 - 8, -50, 1.6, k * 0.5)}</g>` : puff;
+    }).join(''),
+  },
+  toolbox: {
+    draw: () => P('M-26 -56 L-26 -70 Q-26 -78 -18 -78 L18 -78 Q26 -78 26 -70 L26 -56', 'none', SK('#8a7aa8', 7)) + R(-60, -58, 120, 58, 8, '#ff6f61') + R(-60, -58, 120, 14, 6, '#e8554f') + R(-10, -40, 20, 10, 3, '#ffd36b') + LN(-40, -66, -20, -82, '#c9cfdd', 6) + C(-20, -84, 5, '#c9cfdd'),
+  },
+  hammer: { draw: () => R(-4, -80, 8, 78, 4, '#c9945f') + R(-22, -96, 44, 20, 5, '#8a92a8') + R(-22, -96, 10, 20, 3, '#a8b0c4'), hold: [1.1, -30], handle: true },
+  loosestep: {
+    draw: (c, A, i) => {
+      let s = R(-24, -10, 48, 20, 0, '#cfeaff');
+      if (c === 'fixed') s += R(-23, -6, 46, 12, 4, '#ffd9a0') + R(-16, -3, 20, 3, 1.5, '#ffffff', op(0.7)) + mv(A, P(sparkleD(30, -16, 9), '#fff6a8') + P(sparkleD(-30, 10, 6), '#fff6a8'), aFade(0.2, 1.2));
+      else {
+        s += mv(A, G('rotate(14 -20 0)', R(-23, -6, 46, 12, 4, '#e0b07a') + C(-14, 0, 2, '#8a5a3c')), aTurn(5, -20, 0, 0.7, i));
+        s += P('M-34 -12 q-8 12 0 24 M34 -12 q8 12 0 24 M-42 -16 q-10 16 0 32 M42 -16 q10 16 0 32', 'none', SK('#ff6f91', 3));
+      }
+      return s + LN(-27, -14, -27, 14, '#c9945f', 8) + LN(27, -14, 27, 14, '#c9945f', 8);
+    },
+  },
+  bench: {
+    draw: () => R(-96, -114, 192, 14, 6, '#c98a58') + R(-96, -92, 192, 14, 6, '#c98a58') + R(-84, -100, 10, 40, 3, '#8a6a4a') + R(74, -100, 10, 40, 3, '#8a6a4a') + R(-110, -64, 220, 16, 6, '#d99a62') + R(-110, -52, 220, 6, 3, '#b9774a') + R(-96, -50, 12, 50, 4, '#8a6a4a') + R(84, -50, 12, 50, 4, '#8a6a4a'),
+    back: true,
+  },
+  cane: { draw: () => P('M0 0 L0 -96 Q0 -118 18 -118 Q34 -118 34 -100', 'none', SK('#a0663c', 7)) + E(0, 0, 5, 3, '#5a3a2a'), hold: [0.75, -104], handle: true },
+  snail: {
+    draw: (_c, A, i) => mv(A, P('M-34 0 Q-38 -12 -24 -12 L22 -12 Q34 -12 36 0Z', '#ffd9b0') + LN(28, -12, 34, -30, '#ffd9b0', 4) + LN(22, -12, 24, -30, '#ffd9b0', 4) + C(34, -32, 3, '#2d2240') + C(24, -32, 3, '#2d2240') + C(-6, -26, 20, '#ff9ec7') + P('M-6 -26 m-12 0 a12 12 0 1 1 12 12 a8 8 0 1 1 -8 -8 a4 4 0 1 1 4 4', 'none', SK('#e8558f', 3)) + C(-14, -36, 4, '#ffffff', op(0.5)), aMove(14, 0, 4, i)),
+  },
+  picnic: {
+    draw: () => {
+      let s = P('M-170 0 L-120 -50 L170 -50 L130 0Z', '#ffffff');
+      for (let k = 0; k < 6; k++) s += P(`M${-150 + k * 50} 0 L${-110 + k * 50} -50 L${-90 + k * 50} -50 L${-130 + k * 50} 0Z`, '#ff6f91', op(0.7));
+      s += P('M-158 -12 L148 -12 L140 -4 L-150 -4Z M-130 -38 L162 -38 L156 -30 L-122 -30Z', '#ff6f91', op(0.5));
+      return s + G(at(80, -22, 0.6), PROPS.basket.draw(undefined, false, 0, { id: 'basket', x: 0 })) + apple(-60, -26, 10) + G(at(-10, -22), P('M-16 6 L16 6 L0 -14Z', '#f5d9a0') + LN(-12, 2, 12, 2, '#7fca7e', 4));
+    },
+    back: true,
+  },
+  paperboat: {
+    draw: (c = '#e3f1ff', A, i) => {
+      if (c === 'sunk') return G(at(0, -2, 1, 28), P('M-36 -14 L36 -14 L22 0 L-22 0Z', '#f2f2f8') + P('M-6 -14 L-6 -40 L14 -14Z', '#e4e4ee')) + E(0, 0, 50, 8, '#a9d8f5') + [[-16, -24, 6], [6, -40, 5], [-4, -58, 4]].map(([x, y, r], k) => mv(A, C(x, y, r, 'none', SK('#ffffff', 2)), aRise(2, -20, 1.6, k * 0.4))).join('');
+      return mv(A, P('M-44 -18 L44 -18 L28 0 L-28 0Z', c, `stroke="${dark(c, 0.25)}" stroke-width="2.5"`) + P('M-14 -18 L0 -58 L16 -18Z', light(c, 0.2), `stroke="${dark(c, 0.25)}" stroke-width="2.5"`) + LN(0, -58, 0, -18, dark(c, 0.25), 2.5), aTurn(4, 0, 0, 2, i));
+    },
+    hold: [1.3, -20],
+  },
+  laundry: {
+    draw: () =>
+      C(-40, -86, 22, '#7cc8ff') + C(-4, -96, 24, '#ffd36b') + C(34, -86, 22, '#ff9ec7') + R(-60, -100, 30, 20, 6, '#9be07f', 'transform="rotate(-20 -45 -90)"') + P('M30 -96 L44 -130 L58 -124 L48 -92Z', '#c99bff') + R(12, -112, 16, 30, 4, '#ffffff', 'transform="rotate(16 20 -97)"') +
+      P('M-70 -84 L70 -84 L58 0 L-58 0Z', '#f2d4a0') + LN(-66, -60, 66, -60, '#d9b07a', 3) + LN(-62, -32, 62, -32, '#d9b07a', 3) + LN(-30, -84, -26, 0, '#d9b07a', 3) + LN(30, -84, 26, 0, '#d9b07a', 3) + R(-76, -92, 152, 12, 6, '#e8c48a'),
+  },
+  broom: { draw: () => R(-3.5, -150, 7, 120, 3.5, '#c9945f') + P('M-6 -34 L6 -34 L30 0 L-30 0Z', '#ffd36b') + R(-8, -40, 16, 10, 3, '#ff6f91') + P('M-18 -8 L-20 0 M-6 -10 L-6 0 M8 -10 L8 0 M20 -8 L22 0', 'none', SK('#e8b84a', 2)), hold: [1.1, -100], handle: true },
+  settable: {
+    draw: () => {
+      let s = E(0, -4, 200, 12, '#3a1d3f', op(0.1)) + R(-170, -110, 16, 110, 6, '#c48a5a') + R(154, -110, 16, 110, 6, '#c48a5a') + R(-200, -130, 400, 26, 10, '#d9a06b') + R(-206, -140, 412, 18, 9, '#ffffff') + R(-206, -134, 412, 4, 0, '#ffd1e3');
+      [-150, -50, 50, 150].forEach((x, k) => {
+        s += E(x, -146, 36, 8, '#ffffff', 'stroke="#e8e2f0" stroke-width="2"') + E(x, -147, 22, 5, '#f4f0fb') + LN(x - 44, -156, x - 44, -140, '#a8b0c4', 4) + LN(x + 44, -156, x + 44, -140, '#a8b0c4', 4);
+        s += R(x + 18, -184, 20, 30, 5, PAL[k % PAL.length], op(0.85)) + R(x + 20, -180, 5, 20, 2, '#ffffff', op(0.5)) + P(`M${x - 22} -150 L${x - 4} -182 L${x + 14} -150Z`, ['#7cc8ff', '#ffd36b', '#9be07f', '#ff9ec7'][k]) + C(x - 4, -184, 4, '#ffffff');
+      });
+      return s;
+    },
+  },
+  rainbow: {
+    draw: (_c, A) => mv(A, ['#ff6f91', '#ff9a6b', '#ffd36b', '#9be07f', '#7cc8ff', '#c99bff'].map((c, k) => P(`M${-150 + k * 14} 0 A${150 - k * 14} ${150 - k * 14} 0 0 1 ${150 - k * 14} 0`, 'none', SK(c, 14))).join('') + C(-150, 0, 24, '#ffffff') + C(-126, 6, 18, '#ffffff') + C(150, 0, 24, '#ffffff') + C(128, 6, 18, '#ffffff'), aFade(0.7, 3)),
+  },
+  raincloud: {
+    draw: (c, A, i) => {
+      const happy = c === 'happy';
+      const col = happy ? '#e8eef8' : '#a9b4c8';
+      let s = '';
+      if (!happy) for (let k = 0; k < 6; k++) {
+        const x = -48 + k * 19;
+        s += A ? `<line x1="${x}" y1="10" x2="${x - 4}" y2="26" stroke="#7fb2e8" stroke-width="4" stroke-linecap="round"><animateTransform attributeName="transform" type="translate" values="0 0;-6 70" ${rep(0.8 + (k % 3) * 0.15, k * 0.23)}/><animate attributeName="opacity" values="1;1;0" ${rep(0.8 + (k % 3) * 0.15, k * 0.23)}/></line>` : LN(x, 14 + (k % 3) * 18, x - 4, 30 + (k % 3) * 18, '#7fb2e8', 4);
+      }
+      s += C(-36, 0, 26, col) + C(0, -16, 34, col) + C(34, -2, 26, col) + R(-62, -6, 124, 30, 15, col);
+      s += happy ? P('M-14 -6 Q-9 -12 -4 -6 M4 -6 Q9 -12 14 -6', 'none', SK('#5a5a7a', 3)) + P('M-8 4 Q0 12 8 4', 'none', SK('#5a5a7a', 3)) : C(-10, -6, 3, '#5a5a7a') + C(10, -6, 3, '#5a5a7a') + P('M-7 8 Q0 3 7 8', 'none', SK('#5a5a7a', 3));
+      return mv(A, s, aMove(6, -6, 2.4, i));
+    },
+  },
+  crayons: {
+    draw: (_c, A) => {
+      let s = mv(A, glowG(0, -50, 90, '#fff3b0', 0.7), aFade(0.5, 1.6));
+      ['#ff5a5a', '#ffb03a', '#ffd84a', '#5fbf6a', '#4f9dff', '#a77fd6'].forEach((c, k) => {
+        const x = -40 + k * 16;
+        s += R(x - 6, -76 - (k % 2) * 8, 12, 50, 3, c) + P(`M${x - 6} ${-76 - (k % 2) * 8} L${x} ${-92 - (k % 2) * 8} L${x + 6} ${-76 - (k % 2) * 8}Z`, c);
+      });
+      s += R(-54, -50, 108, 50, 8, '#ffd36b') + R(-54, -50, 108, 12, 5, '#ffc21a') + P(starD(0, -22, 12, 0.5), '#ffffff', op(0.9));
+      return s + mv(A, P(sparkleD(60, -96, 10), '#ffffff') + P(sparkleD(-62, -70, 7), '#fff6a8'), aFade(0.1, 1.1));
+    },
+    hold: [0.7, -40],
+  },
+  drawndoor: {
+    draw: (c, A) => {
+      const open = c === 'open';
+      const frame = 'M-60 0 L-60 -190 Q-60 -230 0 -230 Q60 -230 60 -190 L60 0';
+      let s = '';
+      if (open) {
+        s += mv(A, glowG(0, -110, 160, '#fff6c8', 0.8), aFade(0.6, 1.8)) + P(`${frame}Z`, '#fffaf0') + P(`${frame}Z`, '#c9f2b0', op(0.5)) + C(30, -180, 16, '#ffe066') + crayon('M-50 -60 Q0 -90 50 -60', '#5fbf6a', 5);
+        s += P('M60 0 L60 -190 L110 -170 L110 10Z', '#ffd1dc') + crayon('M60 0 L60 -190 L110 -170 L110 10Z', '#a77fd6', 5) + C(98, -86, 7, '#a77fd6');
+      } else s += P(`${frame}Z`, '#ffd1dc', op(0.85)) + crayon('M-40 -150 L40 -150 M-40 -80 L40 -80', '#e8a0c0', 4) + C(42, -100, 9, '#a77fd6');
+      return s + crayon(frame, '#a77fd6', 7) + mv(A, P(sparkleD(-70, -200, 9), '#ffd36b') + P(sparkleD(74, -230, 7), '#ffd36b'), aFade(0.2, 1.3));
+    },
+    back: true,
+  },
+  river: {
+    draw: (_c, A) => {
+      const d = 'M-520 -30 Q-260 -60 0 -36 Q260 -12 520 -40 L520 30 Q260 50 0 30 Q-260 10 -520 34Z';
+      return P(d, '#9fd8ff') + crayon('M-520 -30 Q-260 -60 0 -36 Q260 -12 520 -40', '#4f9dff', 5) + crayon('M-520 34 Q-260 10 0 30 Q260 50 520 30', '#4f9dff', 5) +
+        mv(A, P('M-400 -6 q20 -10 40 0 t40 0 M-80 0 q20 -10 40 0 t40 0 M240 -8 q20 -10 40 0 t40 0', 'none', SK('#ffffff', 4, op(0.8))), aMove(30, 0, 3));
+    },
+    back: true,
+  },
+  rainbowbridge: {
+    draw: () => {
+      let s = '';
+      ['#ff6f91', '#ffb03a', '#ffd84a', '#5fbf6a', '#4f9dff', '#a77fd6'].forEach((c, k) => {
+        const r = 230 - k * 12;
+        s += P(`M${-r} 0 Q0 ${-r * 0.62} ${r} 0`, 'none', SK(c, 13, op(0.95)));
+      });
+      return s + crayon('M-236 0 Q0 -146 236 0', '#a0663c', 3);
+    },
+    back: true,
+  },
+  hotairballoon: {
+    draw: (_c, A, i) => {
+      let s = P('M-40 -200 L-58 -40 M40 -200 L58 -40', 'none', SK('#a0663c', 3));
+      const env = 'M-40 -200 Q-130 -280 -110 -380 Q-80 -470 0 -470 Q80 -470 110 -380 Q130 -280 40 -200Z';
+      const cid = uid('balloon');
+      let stripes = '';
+      for (const [x0, c] of [[-56, '#ffd84a'], [0, '#7cc8ff'], [56, '#ffd84a']] as const) stripes += P(`M${x0 * 0.4 - 5} -200 Q${x0 * 1.2 - 22} -320 ${x0 - 18} -480 L${x0 + 18} -480 Q${x0 * 1.2 + 22} -320 ${x0 * 0.4 + 5} -200Z`, c, op(0.9));
+      s += `<defs><clipPath id="${cid}"><path d="${env}"/></clipPath></defs>` + P(env, '#ff9ec7') + `<g clip-path="url(#${cid})">${stripes}</g>`;
+      s += crayon(env, '#e8558f', 5) + C(-56, -390, 14, '#ffffff', op(0.35)) + R(-40, -210, 80, 14, 6, '#e8558f');
+      const basket = P('M-64 -44 L64 -44 L52 0 L-52 0Z', '#d99a5a') + crayon('M-64 -44 L64 -44 L52 0 L-52 0Z', '#a0663c', 4) + LN(-60, -26, 60, -26, '#a0663c', 2.5);
+      return mv(A, s + basket, aMove(0, -10, 3, i));
+    },
+  },
+  cloudface: {
+    draw: (c, A, i) => {
+      const sad = c === 'sad';
+      let s = crayonCloud(0, 0, 1.3);
+      s += sad ? C(-24, -22, 5, '#5a5a7a') + C(24, -22, 5, '#5a5a7a') + crayon('M-12 -4 Q0 -12 12 -4', '#5a5a7a', 3.5) + P('M-28 -12 C-32 -4 -32 2 -28 2 C-24 2 -24 -4 -28 -12Z', '#8fd4ff')
+        : crayon('M-30 -22 Q-24 -30 -18 -22 M18 -22 Q24 -30 30 -22', '#5a5a7a', 3.5) + crayon('M-14 -8 Q0 6 14 -8', '#5a5a7a', 3.5) + E(-38, -10, 8, 5, '#ff9db5', op(0.7)) + E(38, -10, 8, 5, '#ff9db5', op(0.7));
+      if (!sad) for (let k = 0; k < 6; k++) {
+        const x = -60 + k * 24;
+        const drop = P(`M${x} 14 C${x - 5} 22 ${x - 5} 27 ${x} 27 C${x + 5} 27 ${x + 5} 22 ${x} 14Z`, '#7fb2e8');
+        s += A ? `<g>${drop}<animateTransform attributeName="transform" type="translate" values="0 0;0 90" ${rep(1 + (k % 3) * 0.2, k * 0.3)}/><animate attributeName="opacity" values="1;1;0" ${rep(1 + (k % 3) * 0.2, k * 0.3)}/></g>` : G(at(0, (k % 3) * 24), drop);
+      }
+      return mv(A, s, aMove(10, -4, 3, i));
+    },
+  },
+  drawing: {
+    draw: () =>
+      R(-60, -110, 120, 110, 6, '#ffffff', 'stroke="#ffd36b" stroke-width="6"') + E(-4, -40, 22, 20, '#ffb3d9') + C(-4, -70, 16, '#ffb3d9') + crayon('M-4 -40 m-22 0 a22 20 0 1 0 44 0 a22 20 0 1 0 -44 0', '#e8558f', 2.5) +
+      crayon('M14 -46 L40 -74', '#e8558f', 4) + C(-10, -72, 2.5, '#2d2240') + C(2, -72, 2.5, '#2d2240') + crayon('M-10 -64 Q-4 -60 2 -64', '#2d2240', 2) + P('M-20 -84 L-16 -94 L-12 -84Z M0 -86 L4 -96 L8 -86Z', '#ffd36b') + P('M-30 -52 Q-50 -70 -44 -40Z', '#c9a8ff') + crayon('M-50 -14 L50 -14', '#5fbf6a', 4),
+  },
+  beetle: {
+    draw: (_c, A, i) => mv(A, LN(-14, -4, -22, 4, '#2d2240', 2.5) + LN(14, -4, 22, 4, '#2d2240', 2.5) + LN(-14, -12, -24, -10, '#2d2240', 2.5) + LN(14, -12, 24, -10, '#2d2240', 2.5) + E(0, -12, 16, 12, '#2fbf7a') + LN(0, -24, 0, -1, '#1f8a5a', 2) + C(0, -26, 7, '#1f5a4a') + P('M-3 -32 q-4 -8 -8 -8 M3 -32 q4 -8 8 -8', 'none', SK('#1f5a4a', 2)) + E(-6, -16, 4, 3, '#ffffff', op(0.6)), aMove(10, 0, 3, i)) + mv(A, P(sparkleD(20, -30, 8), '#fff6a8'), aFade(0.1, 1)),
+  },
+  magnifier: { draw: () => R(-5, -10, 10, 54, 5, '#c9945f', 'transform="rotate(-30)"') + C(-26, -48, 28, '#cdefff', 'fill-opacity="0.45" stroke="#7a4fe0" stroke-width="7"') + P('M-40 -60 Q-34 -68 -24 -68', 'none', SK('#ffffff', 4, op(0.8))), hold: [1.1, 0], handle: true },
+  mushroom: { draw: () => R(-9, -36, 18, 36, 7, '#fff3e0') + P('M-40 -30 Q-40 -72 0 -72 Q40 -72 40 -30 Q0 -40 -40 -30Z', '#ff7a7a') + C(-16, -54, 6, '#ffffff') + C(12, -60, 7, '#ffffff') + C(24, -42, 4, '#ffffff') },
+  web: {
+    draw: (_c, A) => {
+      let s = '';
+      for (let k = 0; k < 8; k++) s += LN(0, 0, Math.cos(k * 0.785) * 70, Math.sin(k * 0.785) * 70, '#ffffff', 1.6, op(0.85));
+      for (const r of [18, 34, 50, 64]) s += P([0, 1, 2, 3, 4, 5, 6, 7, 8].map((k) => `${k ? 'L' : 'M'}${f(Math.cos(k * 0.785) * r)} ${f(Math.sin(k * 0.785) * r)}`).join(''), 'none', SK('#ffffff', 1.6, op(0.85)));
+      for (let k = 0; k < 6; k++) s += mv(A, C(Math.cos(k * 1.1) * (24 + k * 7), Math.sin(k * 1.1) * (24 + k * 7), 3.5, '#bfefff') + C(Math.cos(k * 1.1) * (24 + k * 7) - 1, Math.sin(k * 1.1) * (24 + k * 7) - 1, 1.2, '#ffffff'), aFade(0.3, 1.2 + k * 0.2, k * 0.3));
+      return G('translate(0 -80)', s);
+    },
+  },
+  /** Riding down a slide: nothing to sit on, just a little whoosh behind. */
+  sliding: { draw: (_c, A) => mv(A, P('M40 -60 q22 -6 40 0 M50 -36 q18 -6 34 0', 'none', SK('#ffffff', 4, op(0.9))), aMove(14, 0, 0.6)), seat: 6, tilt: 32 },
+  scale: { draw: () => R(-46, -16, 92, 16, 6, '#c9cfdd') + R(-40, -22, 80, 8, 4, '#e8ecf4') + R(30, -150, 8, 132, 4, '#a8b0c4') + C(34, -156, 16, '#ffffff', 'stroke="#a8b0c4" stroke-width="4"') + LN(34, -156, 40, -166, '#ff6f91', 3), back: true },
+  stethoscope: { draw: () => P('M-14 -70 Q-18 -40 0 -30 Q18 -40 14 -70', 'none', SK('#5a6a8a', 5)) + C(-14, -72, 4, '#c9cfdd') + C(14, -72, 4, '#c9cfdd') + P('M0 -30 Q4 -10 20 -6', 'none', SK('#5a6a8a', 5)) + C(24, -6, 10, '#c9cfdd', 'stroke="#8a92a8" stroke-width="3"'), hold: [0.8, -6] },
+  sticker: { draw: () => C(0, -20, 20, '#ffd23f', 'stroke="#ffffff" stroke-width="4"') + P(starD(0, -20, 11, 0.5), '#ffffff') + P(sparkleD(20, -40, 6), '#ffffff'), hold: [1.4, -20] },
+  /** Water pouring from a spout (the prop sits at the spout and the drops fall down and to the right). */
+  pour: {
+    draw: (_c, A) => [0, 1, 2, 3, 4, 5, 6].map((k) => {
+      const x = 10 + k * 14;
+      const y = 10 + k * k * 4;
+      const drop = P(`M${x} ${y} C${x - 6} ${y + 9} ${x - 6} ${y + 15} ${x} ${y + 15} C${x + 6} ${y + 15} ${x + 6} ${y + 9} ${x} ${y}Z`, '#7fc4f0');
+      return A ? `<g>${drop}<animateTransform attributeName="transform" type="translate" values="0 0;30 120" ${rep(1.2, k * 0.17)}/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.2;0.7;1" ${rep(1.2, k * 0.17)}/></g>` : drop;
+    }).join(''),
+  },
+  socks: {
+    draw: () => [[-14, '#7cc8ff', 'stripe'], [14, '#ff9ec7', 'dot']].map(([x, c, k]) => G(at(x as number, 0, 1, (x as number) < 0 ? -8 : 8), P('M-8 -60 L8 -60 L8 -18 Q24 -16 24 -6 Q24 2 4 0 L-8 0Z', c as string) + R(-8, -60, 16, 8, 2, '#ffffff') +
+      (k === 'stripe' ? R(-8, -44, 16, 5, 0, '#ffffff') + R(-8, -32, 16, 5, 0, '#ffffff') : C(0, -40, 2.5, '#ffffff') + C(2, -28, 2.5, '#ffffff') + C(12, -8, 2.5, '#ffffff')))).join(''),
+    hold: [1.2, -40],
+  },
+  letter: { draw: () => R(-34, -48, 68, 46, 5, '#ffffff', 'stroke="#e8e2f0" stroke-width="2"') + P('M-34 -48 L0 -22 L34 -48', 'none', SK('#e0d6ec', 2.5)) + R(16, -44, 14, 14, 2, '#ff9ec7') + P(heartD(0, -18, 8), '#ff6f91'), hold: [0.8, -24] },
 };
 export const STORY_PROPS = Object.keys(PROPS);
 
@@ -1180,7 +1600,7 @@ function propG(p: StoryProp, A: boolean, i: number): string {
 
 // ---------------------------------------------------------------- the animal cast
 type Pose = 'stand' | 'wave' | 'held' | 'sit';
-type Ex = 'normal' | 'happy' | 'surprised' | 'sleep' | 'yum' | 'sad';
+type Ex = 'normal' | 'happy' | 'surprised' | 'sleep' | 'yum' | 'sad' | 'mad';
 interface Kit {
   hy: number;
   by: number;
@@ -1340,6 +1760,7 @@ function eyesG(k: Kit, sp: Species): string {
       s += C(x + 3 * b, y - 4 * b, 3.2 * b, '#ffffff') + C(x - 2.5 * b, y + 3.5 * b, 1.5 * b, '#ffffff');
       if (k.ex === 'surprised') s += P(`M${f(x - 9)} ${f(y - 22 * b)} Q${f(x)} ${f(y - 30 * b)} ${f(x + 9)} ${f(y - 22 * b)}`, 'none', SK(dark(k.fur, 0.45), 4));
       if (k.ex === 'sad') s += LN(x - sd * 8, y - 22 * b, x + sd * 9, y - 15 * b, dark(k.fur, 0.45), 4);
+      if (k.ex === 'mad') s += LN(x + sd * 11, y - 25 * b, x - sd * 9, y - 14 * b, dark(k.fur, 0.55), 5.5);
     }
   }
   return s;
@@ -1356,6 +1777,8 @@ function mouthG(ex: Ex, y: number): string {
       return P(`M-9 ${f(y + 8)} Q0 ${f(y)} 9 ${f(y + 8)}`, 'none', SK(MOUTH, 3.5));
     case 'sleep':
       return E(0, y + 4, 4, 3, MOUTH);
+    case 'mad':
+      return P(`M-13 ${f(y + 10)} Q-7 ${f(y + 2)} 0 ${f(y + 7)} Q7 ${f(y + 2)} 13 ${f(y + 10)}`, 'none', SK(MOUTH, 4));
     default:
       return P(`M-10 ${f(y)} Q-5 ${f(y + 7)} 0 ${f(y + 1)} Q5 ${f(y + 7)} 10 ${f(y)}`, 'none', SK(MOUTH, 3.5));
   }
@@ -1460,6 +1883,9 @@ function animalAcc(acc: string[], k: Kit, sp: Species, A: boolean): { back: stri
       case 'carrot':
         front += G(at(0, hy - 60, 1, 180), P('M-12 -20 L12 -20 L0 40Z', '#ff9a3c') + P('M0 -20 L-10 -40 M0 -20 L0 -44 M0 -20 L10 -40', 'none', SK('#5fbf6a', 5)));
         break;
+      case 'stethoscope':
+        front += P(`M-30 ${hy + 58} Q-38 ${k.by - 6} -8 ${k.by + 4}`, 'none', SK('#5a6a8a', 5)) + P(`M30 ${hy + 58} Q38 ${k.by - 6} 8 ${k.by + 4}`, 'none', SK('#5a6a8a', 5)) + P(`M0 ${k.by + 4} Q0 ${k.by + 18} 12 ${k.by + 24}`, 'none', SK('#5a6a8a', 5)) + C(16, k.by + 26, 10, '#c9cfdd', 'stroke="#8a92a8" stroke-width="3"');
+        break;
       case 'helmet':
         front += E(0, hy + 70, 54, 12, '#c9cfe0') + C(0, hy - 4, HR + 32, '#cdefff', `fill-opacity="0.22" stroke="#ffffff" stroke-width="4" stroke-opacity="0.85"`) + P(`M${-HR + 2} ${hy - 30} Q${-HR + 10} ${hy - HR - 10} ${-14} ${hy - HR - 24}`, 'none', SK('#ffffff', 6, op(0.6)));
         break;
@@ -1498,6 +1924,7 @@ function animalArt(sp: Species, m: CastMember, A: boolean, i: number): string {
   s += sp.nose?.(k) ?? '';
   const cx = (sp.eyeX ?? 24) + 20;
   s += E(-cx, k.hy + 14, 11, 6.5, '#ff8fb1', op(0.55)) + E(cx, k.hy + 14, 11, 6.5, '#ff8fb1', op(0.55));
+  if (ex === 'mad') s += E(-cx, k.hy + 12, 16, 9, '#ff4f5e', op(0.4)) + E(cx, k.hy + 12, 16, 9, '#ff4f5e', op(0.4));
   if (up) s += arms;
   if (holding) {
     const def = PROPS[m.hold!];
@@ -1539,6 +1966,23 @@ const KIDS: Record<string, () => Look> = {
   milo: () => ({
     ...baseLook(), boy: true, skin: '#965a3c', hair: 'curlytop', hairColor: '#2b1d1a', eyes: 'round', eyeColor: '#3b2418', mouth: 'grin',
     wear: { top: wornOf('top-longtee-dino', '#9be07f'), bottom: wornOf('jeans', '#4f6fb8'), shoes: wornOf('sneakers', '#ffb347') },
+  }),
+  // grown-ups, drawn taller than the kids
+  mom: () => ({
+    ...baseLook(), age: 'adult', skin: '#f5c09f', hair: 'wavy', hairColor: '#b5432f', eyes: 'lashes', eyeColor: '#3c9a6b', lips: '#e0607e', blush: '#ff9db5',
+    wear: { top: wornOf('blouse', '#7cc8ff'), bottom: wornOf('jeans', '#4f6fb8'), shoes: wornOf('flats', '#ff7eb6'), neck: wornOf('heartNecklace') },
+  }),
+  dad: () => ({
+    ...baseLook(), boy: true, age: 'adult', skin: '#f0c4a0', hair: 'short', hairColor: '#5a3825', eyes: 'almond', eyeColor: '#3f7fbf', mouth: 'smile',
+    wear: { top: wornOf('polo', '#9be07f'), bottom: wornOf('jeans', '#3f4f9a'), shoes: wornOf('sneakers', '#4a4a5e'), face: wornOf('glasses', '#5a3825') },
+  }),
+  grandma: () => ({
+    ...baseLook(), age: 'adult', skin: '#965a3c', hair: 'bun', hairColor: '#e8e6ef', eyes: 'almond', eyeColor: '#3b2418', blush: '#ff9db5',
+    wear: { dress: wornOf('floral', '#c99bff', 'flowers'), outer: wornOf('cardigan', '#ffd36b'), shoes: wornOf('flats', '#a77fd6'), face: wornOf('glasses', '#7a4fe0'), neck: wornOf('pearls') },
+  }),
+  grandpa: () => ({
+    ...baseLook(), boy: true, age: 'adult', skin: '#ffe3d3', hair: 'short', hairColor: '#e8e6ef', eyes: 'round', eyeColor: '#3f7fbf', mouth: 'smile',
+    wear: { top: wornOf('sweater', '#7cc8ff'), bottom: wornOf('jeans', '#6a5a8a'), shoes: wornOf('sneakers', '#c9945f'), face: wornOf('glasses', '#5a3825') },
   }),
 };
 export const STORY_KIDS = Object.keys(KIDS);
@@ -1582,15 +2026,17 @@ function dressKid(look: Look, m: CastMember): Look {
 
 function kidArt(m: CastMember, bg: string, A: boolean, i: number): string {
   const look = dressKid(KIDS[m.who](), m);
+  if (m.expr === 'mad') look.mouth = 'o';
   const pose = (m.pose ?? 'stand') as Pose;
   const ex = (m.expr ?? 'normal') as Ex;
   const b: Body = body(look.age, !!look.boy);
-  const k = 340 / dollHeight(look);
-  let doll = renderDoll(look, { pose, expr: ex === 'sad' ? 'normal' : ex });
+  const k = (look.age === 'adult' ? 440 : 340) / dollHeight(look);
+  let doll = renderDoll(look, { pose, expr: ex === 'sad' || ex === 'mad' ? 'normal' : ex });
   // extras drawn in standing doll space
   let extra = '';
   const eyeX = b.R * 0.38;
   const eyeY = b.headY + b.R * 0.12;
+  if (ex === 'mad') extra += P(`M${f(-eyeX - 14)} ${f(eyeY - 40)} L${f(-eyeX + 10)} ${f(eyeY - 30)} M${f(eyeX + 14)} ${f(eyeY - 40)} L${f(eyeX - 10)} ${f(eyeY - 30)}`, 'none', SK(dark(look.hairColor, 0.1), 5));
   if (ex === 'sad') extra += tearG(-eyeX - 4, eyeY + 16, A, 1.3) + P(`M${f(-eyeX - 14)} ${f(eyeY - 30)} L${f(-eyeX + 10)} ${f(eyeY - 38)} M${f(eyeX + 14)} ${f(eyeY - 30)} L${f(eyeX - 10)} ${f(eyeY - 38)}`, 'none', SK(dark(look.hairColor, 0.1), 4));
   if (ex === 'sleep' && !m.swim) extra += zzzG(b.R * 0.9, b.headY - b.R, A, !!m.flip, 1.3);
   for (const a of m.acc ?? []) {
@@ -1656,6 +2102,7 @@ function castG(m: CastMember, bg: string, A: boolean, i: number): string {
     const sled = `<g transform="scale(${f2(m.flip ? -rs : rs)} ${f2(rs)})">${ride.draw(undefined, A, i, { id: m.ride!, x: 0 })}</g>`;
     const front = ride.front ? `<g transform="scale(${f2(m.flip ? -rs : rs)} ${f2(rs)})">${ride.front(undefined)}</g>` : '';
     const all = sled + rider + front;
+    if (ride.tilt) return `<g transform="translate(${f(x)} ${f(y)}) rotate(${f(m.flip ? -ride.tilt : ride.tilt)})">${mv(A, all, A ? aMove(-10, 0, 1.2, i) : '')}</g>`;
     return E(x, y, 110 * rs, 12 * rs, '#3a1d3f', op(0.12)) + `<g transform="translate(${f(x)} ${f(y)})">${mv(A, all, A ? aMove(4, -3, 0.8, i) : '')}</g>`;
   }
   if (m.swim) {
@@ -1719,7 +2166,7 @@ export function storyCover(story: Story): string {
   const n = who.length;
   const spots = n === 1 ? [0.5] : n === 2 ? [0.4, 0.6] : [0.32, 0.5, 0.68];
   const animal = (w: string) => (n === 1 ? 1.25 : 1.05) * (0.45 + 0.55 / SPECIES[w].size);
-  const cast: CastMember[] = who.map((w, k) => ({ who: w, x: spots[k], pose: k === 0 ? 'wave' : k === 2 ? 'held' : 'stand', expr: 'happy', size: KIDS[w] ? 0.95 : animal(w), flip: k === n - 1 && n > 1 }));
+  const cast: CastMember[] = who.map((w, k) => ({ who: w, x: spots[k], pose: k === 0 ? 'wave' : k === 2 ? 'held' : 'stand', expr: 'happy', size: KIDS[w] ? (KIDS[w]().age === 'adult' ? 0.8 : 0.95) : animal(w), flip: k === n - 1 && n > 1, tint: story.cover.tints?.[k] || undefined }));
   const art = storyScene({ text: '', bg: sceneBg, cast, time: first?.time }, { animate: false });
 
   // title lettering

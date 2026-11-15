@@ -9,7 +9,7 @@ import { storyCover, storyScene } from '../art/storyart';
 import { heartD, sparkleD, starD } from '../art/wear';
 import { STORIES, type Story } from '../data/stories';
 import { duckMusic, movieScore, sound } from '../engine/audio';
-import { burst, celebrate } from '../engine/particles';
+import { burst, celebrate, setWeather } from '../engine/particles';
 import { G, toast } from '../game';
 import type { Doll } from '../types';
 import { el, esc, headThumb, still } from './dom';
@@ -27,12 +27,16 @@ function shuffle<T>(a: T[]): T[] {
 }
 
 /** Full-screen activity frame with a back button, a title and a close button. */
-function frame(cls: string, title: string, onClose: () => void): { root: HTMLDivElement; body: HTMLDivElement; close: () => void; setTitle: (t: string) => void } {
+/** A full-screen activity: header with close button, title and coins, and a body to fill. */
+export function frame(cls: string, title: string, onClose: () => void): { root: HTMLDivElement; body: HTMLDivElement; close: () => void; setTitle: (t: string) => void } {
   const layer = document.getElementById('overlay')!;
   const root = el('div', `act ${cls}`);
   root.innerHTML = `<div class="act-head"><button class="round-btn" data-xclose>${icon('close')}</button><h2></h2><div class="pill coins-mini">${icon('coin')}<span></span></div></div><div class="act-body"></div>`;
   layer.appendChild(root);
   document.getElementById('toast')?.classList.remove('show'); // town hints belong to the room, not the activity
+  // confetti shows over the activity; the falling leaves and snow wait outside
+  document.body.classList.add('act-open');
+  setWeather(null);
   requestAnimationFrame(() => root.classList.add('show'));
   const h2 = root.querySelector('h2')!;
   h2.textContent = title;
@@ -47,6 +51,10 @@ function frame(cls: string, title: string, onClose: () => void): { root: HTMLDiv
     sound.tap();
     root.classList.remove('show');
     window.setTimeout(() => root.remove(), 260);
+    if (!document.querySelectorAll('#overlay .act.show').length) {
+      document.body.classList.remove('act-open');
+      setWeather(G.s.season);
+    }
     onClose();
   };
   root.querySelector('[data-xclose]')!.addEventListener('click', close);
@@ -55,8 +63,26 @@ function frame(cls: string, title: string, onClose: () => void): { root: HTMLDiv
 
 // ---------------- reading aloud ----------------
 /** Reads text in the calm story voice (see engine/voice). */
-export function speak(text: string, onEnd?: () => void, rate?: number): void {
-  speakCalm(text, { enabled: !!G.s.settings.sound, voice: G.s.settings.voice, rate, onEnd });
+export function speak(text: string, onEnd?: () => void, rate?: number, onWord?: (charIndex: number) => void): void {
+  speakCalm(text, { enabled: !!G.s.settings.sound, voice: G.s.settings.voice, rate, onEnd, onWord });
+}
+
+/** Page text as words that can light up while they're read aloud. */
+const readAlong = (text: string) => text.split(/(\s+)/).reduce((acc, part) => {
+  acc.html += /\S/.test(part) ? `<span class="w" data-at="${acc.at}">${esc(part)}</span>` : part;
+  acc.at += part.length;
+  return acc;
+}, { html: '', at: 0 }).html;
+/** Lights up the word at charIndex (and dims the ones already read). */
+function lightWord(box: Element | null, charIndex: number): void {
+  if (!box) return;
+  const words = [...box.querySelectorAll<HTMLElement>('.w')];
+  let cur: HTMLElement | null = null;
+  for (const w of words) if (Number(w.dataset.at) <= charIndex) cur = w;
+  for (const w of words) {
+    w.classList.toggle('on', w === cur);
+    w.classList.toggle('read', !!cur && Number(w.dataset.at) < Number(cur.dataset.at));
+  }
 }
 export const hush = () => hushVoice();
 
@@ -101,6 +127,10 @@ export function openStories(kind: 'book' | 'movie', onClose: () => void): void {
 
   const readBook = (st: Story) => {
     let i = 0;
+    const readPage = (text: string) => {
+      const box = fr.body.querySelector('.page-text');
+      speak(text, () => box?.querySelectorAll('.w').forEach((w) => w.classList.remove('on')), undefined, (ci) => lightWord(box, ci));
+    };
     let aloud = !!G.s.settings.sound;
     fr.setTitle(st.title);
     const draw = (dir = 0) => {
@@ -114,10 +144,10 @@ export function openStories(kind: 'book' | 'movie', onClose: () => void): void {
         return;
       }
       const p = st.pages[i];
-      fr.body.innerHTML = `<div class="reader"><div class="page ${dir > 0 ? 'turn-next' : dir < 0 ? 'turn-prev' : ''}"><svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">${storyScene(p)}</svg><p class="page-text">${esc(p.text)}</p></div>
+      fr.body.innerHTML = `<div class="reader"><div class="page ${dir > 0 ? 'turn-next' : dir < 0 ? 'turn-prev' : ''}"><svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">${storyScene(p)}</svg><p class="page-text">${readAlong(p.text)}</p></div>
         <div class="reader-bar"><button class="round-btn big" data-prev ${i === 0 ? 'disabled' : ''}>${icon('back')}</button><div class="dots">${st.pages.map((_, k) => `<i class="${k < i ? 'on' : k === i ? 'now' : ''}"></i>`).join('')}</div>
         <button class="chip aloud${aloud ? ' on' : ''}" data-aloud>${icon('sound')}<span>Read to me</span></button><button class="round-btn big next" data-next>${icon('back')}</button></div></div>`;
-      if (aloud) speak(p.text);
+      if (aloud) readPage(p.text);
     };
     fr.body.onclick = (e) => {
       const t = e.target as Element;
@@ -131,7 +161,7 @@ export function openStories(kind: 'book' | 'movie', onClose: () => void): void {
         draw(-1);
       } else if (t.closest('[data-aloud]')) {
         aloud = !aloud;
-        if (aloud) speak(st.pages[i]?.text ?? '');
+        if (aloud) readPage(st.pages[i]?.text ?? '');
         else hush();
         t.closest('[data-aloud]')!.classList.toggle('on', aloud);
       } else if (t.closest('[data-again]')) {
@@ -255,11 +285,13 @@ export function openGrocery(onClose: () => void): void {
     window.setTimeout(() => {
       list.forEach((_, k) => window.setTimeout(() => sound.click(), k * 180));
       const coins = 12 + Math.max(0, 6 - wrong * 2);
+      // the groceries go home to the fridge
+      for (const d of list) G.s.pantry[d.id] = (G.s.pantry[d.id] ?? 0) + 1;
       G.bump('groceries');
       G.earn(coins, { x: window.innerWidth / 2, y: window.innerHeight / 2 });
       celebrate();
       sound.success();
-      fr.body.insertAdjacentHTML('beforeend', `<div class="act-result"><div class="sp-card"><h2>All shopping done!</h2><p>Beep, beep! Everything is in the basket.</p><p class="earned">${icon('coin')} +${coins}</p><div class="row"><button class="btn primary" data-again>${icon('cart')}<span>New list</span></button></div></div></div>`);
+      fr.body.insertAdjacentHTML('beforeend', `<div class="act-result"><div class="sp-card"><h2>All shopping done!</h2><p>Beep, beep! Your groceries are waiting in the fridge at home.</p><p class="earned">${icon('coin')} +${coins}</p><div class="row"><button class="btn primary" data-again>${icon('cart')}<span>New list</span></button></div></div></div>`);
     }, 400);
   };
   round();
@@ -319,12 +351,19 @@ const ingBtn = (id: string) => {
   return `<svg viewBox="-150 -60 300 110">${g.art(y)}</svg>`;
 };
 
-export function openRestaurant(onClose: () => void): void {
-  const fr = frame('kitchen-game', 'Chef Time!', onClose);
+/** The dish as a snack you can put in a room. */
+const DISH_FOOD: Record<string, string> = { burger: 'burger', pizza: 'pizza', sundae: 'sundae', pancakes: 'pancakes', salad: 'salad' };
+
+/**
+ * Cooking: follow the recipe one ingredient at a time. At the restaurant guests leave tips; at
+ * home (opts.home) you cook for the friends in the room and the finished dish appears there.
+ */
+export function openRestaurant(onClose: () => void, opts: { home?: boolean; guests?: Doll[]; onServe?: (foodId: string, guest: Doll) => void } = {}): void {
+  const fr = frame('kitchen-game', opts.home ? 'Home Kitchen' : 'Chef Time!', onClose);
   let served = 0;
   const order = () => {
     const dish = pick(DISHES);
-    const guest = pick(G.s.dolls);
+    const guest = pick(opts.guests?.length ? opts.guests : G.s.dolls);
     let step = 0;
     let oops = 0;
     const extras = shuffle(Object.keys(ING).filter((k) => k !== 'plate' && !dish.steps.includes(k))).slice(0, 3);
@@ -368,8 +407,12 @@ export function openRestaurant(onClose: () => void): void {
         const r = fr.body.querySelector('.plate')!.getBoundingClientRect();
         burst('heart', r.left + r.width / 2, r.top + 40, 14);
         G.bump('cooked');
-        G.earn(tip, { x: r.left + r.width / 2, y: r.top });
-        fr.body.insertAdjacentHTML('beforeend', `<div class="act-result"><div class="sp-card"><div class="done-stars">${icon('star').repeat(stars)}</div><h2>Yummy!</h2><p>${esc(guest.name)} loved the ${esc(dish.name.toLowerCase())}!</p><p class="earned">${icon('coin')} +${tip} tip</p><div class="row"><button class="btn primary" data-next>${icon('cake')}<span>Next order</span></button></div></div></div>`);
+        if (opts.home) {
+          const food = FURN_BY_ID[DISH_FOOD[dish.id]] ? DISH_FOOD[dish.id] : 'cake';
+          opts.onServe?.(food, guest);
+          G.bump('homeCook');
+        } else G.earn(tip, { x: r.left + r.width / 2, y: r.top });
+        fr.body.insertAdjacentHTML('beforeend', `<div class="act-result"><div class="sp-card"><div class="done-stars">${icon('star').repeat(stars)}</div><h2>Yummy!</h2><p>${esc(guest.name)} loved the ${esc(dish.name.toLowerCase())}!</p>${opts.home ? `<p>It's on the table in your kitchen.</p>` : `<p class="earned">${icon('coin')} +${tip} tip</p>`}<div class="row"><button class="btn primary" data-next>${icon('cake')}<span>Next order</span></button></div></div></div>`);
       }, 450);
     };
   };

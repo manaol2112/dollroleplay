@@ -9,13 +9,23 @@ import { claimableCount, dailyReady } from '../data/state';
 import { keepAudioAwake, sound, startMusic, unlockAudio } from '../engine/audio';
 import { burst, celebrate, setWeather } from '../engine/particles';
 import { SceneView } from '../engine/scene';
-import { G, toast } from '../game';
+import { G, MAX_PROFILES, toast } from '../game';
 import type { Look, Season } from '../types';
 import { openCloset } from './closet';
 import { openCarWash, openDoctor, openGrocery, openRestaurant, openStories } from './activities';
 import { openNails } from './nails';
+import { SEASON_FUN, openSeasonFun } from './seasonfun';
+import { openBalloonPop, openIceSkate, openKartRace, openRingToss, openSwimRace } from './minigames';
+import { openDanceParty, openFashionShow } from './showtime';
+import { awardSticker, openStickerBook } from './stickers';
+import { STICKERS, stickerSvg } from '../art/stickers';
+import { openSurpriseBox, surpriseReady } from './surprise';
+import { openAlbum } from './album';
+import { snapScene } from '../engine/photos';
+import { openPetCare, openPetShop } from './pets';
+import { petThumb } from '../art/pets';
 import { openSports } from './sports';
-import { confirmBox, el, esc, headThumb, still } from './dom';
+import { confirmBox, el, esc, headThumb, openModal, promptName, still } from './dom';
 import { icon } from './icons';
 import { SEASON_ICON, SEASON_NAME, openCatalog, openChallenges, openLesson, openPiano, openSeasons, openSettings, openShop } from './panels';
 
@@ -57,6 +67,15 @@ const CAT_INFO: Record<string, { name: string; icon: string }> = {
   rides: { name: 'Rides', icon: 'ferris' },
 };
 
+/** Things that earn a sticker, and the reason shown with it. */
+const STICKER_FOR: Record<string, string> = {
+  read: 'Read a book', movie: 'Watched a movie', songComplete: 'Played a song', cooked: 'Cooked a meal', homeCook: 'Cooked at home',
+  patients: 'Helped a patient', carwash: 'Washed a car', groceries: 'Went shopping', kartRace: 'Raced a go-kart', swim: 'Swam a race',
+  skate: 'Went ice skating', boothGame: 'Played a carnival game', fashionShow: 'Fashion show star', dance: 'Danced the night away',
+  seasonFun: 'Seasonal fun', makeMovie: 'Made a movie', petBath: 'Bathed your pet', petPlay: 'Played with your pet', adoptPet: 'New pet!',
+  checkIn: 'Checked into the hotel', manicure: 'Got a manicure', makeover: 'Gave a makeover', lesson: 'Finished a lesson', ride: 'Went on a ride',
+};
+
 export class App {
   private stage = document.getElementById('stage')!;
   private hud = document.getElementById('hud')!;
@@ -71,6 +90,12 @@ export class App {
 
   constructor() {
     G.on(() => this.refreshHud());
+    // Playing earns stickers: always the first time you do something, sometimes after that.
+    G.onBump = (stat, first) => {
+      const why = STICKER_FOR[stat];
+      if (!why) return;
+      if (first || Math.random() < 0.3) window.setTimeout(() => awardSticker(why), 1200);
+    };
     keepAudioAwake();
     window.addEventListener('hashchange', () => this.start());
   }
@@ -92,6 +117,7 @@ export class App {
     this.tray = null;
     this.screen = s;
     document.getElementById('overlay')!.innerHTML = '';
+    document.body.classList.remove('act-open');
     this.stage.innerHTML = '';
     this.stage.className = `screen-${s.kind}`;
     if (s.kind === 'title') this.showTitle();
@@ -116,16 +142,24 @@ export class App {
     const dolls = [girls[0], boys[0], girls[1], boys[1] ?? girls[2]].filter(Boolean).slice(0, 4);
     const lineup = dolls.map((d, i) => {
       const x = 800 + (i - (dolls.length - 1) / 2) * 230;
-      return `<g transform="translate(${x} ${830 + (i % 2) * 20}) scale(1.05)"><g class="bob" style="animation-delay:${i * 0.4}s">${renderDoll(d.look, { pose: i === 1 ? 'wave' : 'stand', expr: i % 2 ? 'happy' : 'normal' })}</g></g>`;
+      return `<g transform="translate(${x} ${900 + (i % 2) * 14}) scale(0.82)"><g class="bob" style="animation-delay:${i * 0.4}s">${renderDoll(d.look, { pose: i === 1 ? 'wave' : 'stand', expr: i % 2 ? 'happy' : 'normal' })}</g></g>`;
     }).join('');
     const root = el('div', 'title-screen', `
       <svg class="title-bg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">${landscape(G.s.season, 600)}${ground(G.s.season, 600)}${lineup}</svg>
       <div class="title-ui">
         <div class="logo"><span class="l1">Doll</span><span class="l2">Role Play</span><i class="sp s1"></i><i class="sp s2"></i><i class="sp s3"></i></div>
-        <button class="btn play">${icon('heart')}<span>Play</span></button>
+        <div class="who"><h3>Who's playing?</h3><div class="who-cards"></div></div>
       </div>`);
     this.stage.appendChild(root);
-    root.querySelector('.play')!.addEventListener('click', () => {
+    const cards = root.querySelector('.who-cards') as HTMLDivElement;
+    const drawCards = () => {
+      cards.innerHTML = G.profiles.map((p) => `<div class="who-card" style="--pc:${p.color}" data-profile="${p.id}">
+          <span class="who-face">${p.face ? headThumb(p.face) : icon('star')}</span><b>${esc(p.name)}</b>
+          <button class="who-edit" data-rename="${p.id}" aria-label="Change name">${icon('pencil')}</button></div>`).join('') +
+        (G.profiles.length < MAX_PROFILES ? `<button class="who-card add" data-addprofile>${icon('plus')}<b>New player</b></button>` : '');
+    };
+    drawCards();
+    const play = () => {
       unlockAudio();
       sound.sparkle();
       if (G.s.settings.music) startMusic();
@@ -133,8 +167,43 @@ export class App {
       if (!G.s.seenIntro) {
         G.s.seenIntro = true;
         G.changed();
-        window.setTimeout(() => toast('Welcome to town! Tap a building to visit. Finish challenges to earn coins.', 'heart', true), 700);
+        window.setTimeout(() => toast(`Welcome to town, ${esc(G.profile.name)}! Tap a building to visit. Finish challenges to earn coins.`, 'heart', true), 700);
       }
+    };
+    cards.addEventListener('click', (e) => {
+      const t = e.target as Element;
+      const rn = (t.closest('[data-rename]') as HTMLElement | null)?.dataset.rename;
+      if (rn) {
+        e.stopPropagation();
+        const p = G.profiles.find((x) => x.id === rn);
+        if (p) promptName(p.name, (name) => {
+          G.renameProfile(rn, name);
+          drawCards();
+        }, "What's your name?");
+        return;
+      }
+      if (t.closest('[data-addprofile]')) {
+        sound.tap();
+        promptName('', (name) => {
+          const p = G.addProfile(name);
+          if (!p) return;
+          G.switchTo(p.id);
+          // pick the friend that is "you"
+          const m = openModal('pickme', `<h2>Hi ${esc(p.name)}! Which friend are you?</h2><div class="roster pickme">${G.s.dolls.map((d) => `<button class="ava" data-me="${d.id}">${headThumb(d.look)}<span>${esc(d.name)}</span></button>`).join('')}</div>`);
+          m.box.addEventListener('click', (e) => {
+            const id = ((e.target as Element).closest('[data-me]') as HTMLElement | null)?.dataset.me;
+            if (!id) return;
+            G.setFace(id);
+            m.close();
+            play();
+          });
+        }, "What's your name?");
+        return;
+      }
+      const id = (t.closest('[data-profile]') as HTMLElement | null)?.dataset.profile;
+      if (!id) return;
+      G.switchTo(id);
+      play();
     });
   }
 
@@ -295,6 +364,17 @@ export class App {
     this.tray = tray;
     const scene = new SceneView(place, {
       openCloset: (dollId) => this.openClosetFor(dollId),
+      openPet: (petId) => {
+        const pt = G.s.pets.find((x) => x.id === petId);
+        if (!pt) return;
+        this.tray?.classList.add('hidden');
+        openPetCare(pt, () => {
+          this.tray?.classList.remove('hidden');
+          this.scene?.renderAll();
+          this.renderTray();
+          this.refreshHud();
+        });
+      },
       trayRect: () => tray.getBoundingClientRect(),
       onDragState: (on) => {
         tray.classList.toggle('dragging', on);
@@ -327,14 +407,23 @@ export class App {
     }
     if (id === 'theater') html += b('piano', 'note', 'Music') + b('curtains', 'curtain', 'Curtains') + b('lights', 'bulb', 'Lights', sc?.lights);
     if (id === 'salon') html += b('makeover', 'scissors', 'Makeover') + b('nails', 'makeup', 'Nails');
-    if (id === 'playground') html += b('sports', 'toy', 'Sports');
+    if (id === 'playground') html += b('sports', 'toy', 'Sports') + b('kart', 'car', 'Go-Kart') + b('skate', 'snow', 'Ice Skating');
+    if (id === 'hotel') html += b('pool', 'star', 'Pool');
+    if (id === 'themepark') html += b('ringtoss', 'star', 'Ring Toss') + b('balloons', 'heart', 'Balloon Pop');
     if (id === 'boutique') html += b('shop', 'bag', 'Shop');
     const placeActs: Record<string, [string, string, string]> = {
       library: ['read', 'book', 'Read'], cinema: ['movies', 'film', 'Movies'], grocery: ['groceries', 'cart', 'Shopping'], restaurant: ['cook', 'chef', 'Cook'],
       hospital: ['doctor', 'doctor', 'Doctor'], carshop: ['carwash', 'car', 'Car Wash'], hotel: ['roomservice', 'bell', 'Room Service'], mall: ['shop', 'bag', 'Shop'],
     };
     if (placeActs[id]) html += b(...placeActs[id]);
+    if (id === 'kitchen') html += b('homecook', 'chef', 'Cook');
+    if (id === 'backyard') html += `<button class="act-btn" data-act="seasonfun">${SEASON_FUN[G.s.season].icon}<span>${esc(SEASON_FUN[G.s.season].name)}</span></button>`;
+    if (id === 'mall') html += b('pets', 'heart', 'Pet Shop') + b('fashion', 'hanger', 'Fashion Show');
+    if (id === 'theater') html += b('dance', 'note', 'Dance Party');
+    if (id === 'hotel') html += b('checkin', 'bell', (G.s.stats.checkIn ?? 0) > 0 ? 'My Room' : 'Check In');
+    if (PLACES[id] && (PLACES[id].room || PLACES[id].yard || id === 'hotelroom')) html += b('night', sc?.sc.night ? 'sun' : 'moon', sc?.sc.night ? 'Morning' : 'Night', !!sc?.sc.night);
     if (PLACES[id] && designable(PLACES[id])) html += b('decorate', 'decorate', 'Decorate');
+    if (PLACES[id]) html += b('photo', 'camera', 'Photo');
     box.innerHTML = html;
     box.onclick = (e) => {
       const t = e.target as Element;
@@ -349,6 +438,10 @@ export class App {
       if (!act || !sc) return;
       sound.tap();
       if (act === 'lesson') openLesson();
+      if (act === 'night') {
+        sc.setNight(!sc.sc.night);
+        toast(sc.sc.night ? 'Good night! Switch on a lamp and tuck your friends into bed.' : 'Good morning, sunshine!', sc.sc.night ? 'moon' : 'sun');
+      }
       if (act === 'draw') {
         sc.drawMode = !sc.drawMode;
         if (sc.drawMode) toast('Draw on the chalkboard with your finger!', 'pencil');
@@ -393,6 +486,65 @@ export class App {
       if (act === 'movies') openStories('movie', back);
       if (act === 'groceries') openGrocery(back);
       if (act === 'cook') openRestaurant(back);
+      if (act === 'checkin') this.checkIn();
+      if (act === 'seasonfun') {
+        this.tray?.classList.add('hidden');
+        openSeasonFun(G.s.season, () => {
+          this.tray?.classList.remove('hidden');
+          back();
+        });
+      }
+      const game = (open: (done: () => void) => void) => {
+        this.tray?.classList.add('hidden');
+        open(() => {
+          this.tray?.classList.remove('hidden');
+          back();
+        });
+      };
+      const player = sc.dolls()[0]?.id;
+      if (act === 'kart') game((done) => openKartRace(player, done));
+      if (act === 'skate') game((done) => openIceSkate(player, done));
+      if (act === 'pool') game((done) => openSwimRace(player, done));
+      const prize = (pid: string) => {
+        if (this.scene === sc && FURN_BY_ID[pid]) sc.dropIn('item', pid);
+      };
+      if (act === 'ringtoss') game((done) => openRingToss(done, prize));
+      if (act === 'balloons') game((done) => openBalloonPop(done, prize));
+      if (act === 'fashion') this.fashionShow(back);
+      if (act === 'dance') {
+        this.closePiano?.();
+        this.closePiano = null;
+        openDanceParty(back);
+      }
+      if (act === 'photo') {
+        sc.hidePopupNow();
+        void snapScene(sc.svg, G.profile.id, PLACES[id].name);
+      }
+      if (act === 'pets') {
+        this.tray?.classList.add('hidden');
+        openPetShop((pet) => {
+          pet.place = id;
+          pet.x = sc.camX - 100 + Math.random() * 200;
+          pet.y = PLACES[id].floorBottom - 10;
+          pet.seat = null;
+          G.s.pets.push(pet);
+          G.changed();
+          toast(`Say hi to ${esc(pet.name)}! Find your pet in the Friends tray.`, 'heart', true);
+        }, () => {
+          this.tray?.classList.remove('hidden');
+          sc.renderAll();
+          this.renderTray();
+          this.refreshHud();
+        });
+      }
+      if (act === 'homecook') {
+        const here = sc.dolls();
+        openRestaurant(back, { home: true, guests: here.length ? here : G.s.dolls, onServe: (food) => {
+          if (this.scene === sc) sc.dropIn('item', food);
+          else G.s.scenes.kitchen.items.push({ uid: G.s.nextUid++, def: food, x: 700 + Math.random() * 200, y: 760 });
+          G.changed();
+        } });
+      }
       if (act === 'doctor') openDoctor(sc.dolls()[0]?.id, back);
       if (act === 'carwash') openCarWash(back, (fid, color) => {
         if (!G.owns(fid)) return;
@@ -409,6 +561,45 @@ export class App {
       if (act === 'decorate') openCatalog((fid) => this.scene?.dropIn('item', fid), PLACES[id]?.decor ? PLACES[id].tray[0] : undefined);
       this.renderActions(box);
     };
+  }
+
+  /** The mall runway; "Change outfit" visits the closet and comes back to the show. */
+  private fashionShow(back: () => void): void {
+    const onDress = (dollId: string) => this.openClosetFor(dollId, 'closet', false, () => openFashionShow(back, onDress));
+    openFashionShow(back, onDress);
+  }
+
+  /** The hotel front desk: pick a suite, get a key card, and go up to your own room. */
+  private checkIn(): void {
+    if ((G.s.stats.checkIn ?? 0) > 0) {
+      this.go({ kind: 'place', id: 'hotelroom' });
+      return;
+    }
+    const SUITES: [string, string, string, string, string][] = [
+      ['princess', 'Princess Suite', 'wall-damask-0', 'floor-carpet-3', '#ff9ec7'],
+      ['ocean', 'Ocean Suite', 'wall-paint-5', 'floor-hex-1', '#7cc8ff'],
+      ['space', 'Starry Night Suite', 'wall-paint-12', 'floor-terrazzo-2', '#c99bff'],
+    ];
+    const m = openModal('checkin', `<div class="ci-desk"><div class="ci-bell">${icon('bell')}</div><h2>Welcome to the Grand Hotel!</h2><p>Which room would you like?</p>
+      <div class="ci-suites">${SUITES.map(([id, name, , , c]) => `<button class="ci-suite" data-suite="${id}" style="--sc:${c}">${icon('bed')}<b>${name}</b></button>`).join('')}</div></div>`);
+    m.box.addEventListener('click', (e) => {
+      const b = (e.target as Element).closest('[data-suite]') as HTMLElement | null;
+      if (!b) return;
+      const su = SUITES.find((x) => x[0] === b.dataset.suite)!;
+      const room = G.s.scenes.hotelroom;
+      if (room && WALLS.some((w) => w.id === su[2])) room.wall = su[2];
+      if (room && FLOORS.some((f) => f.id === su[3])) room.floor = su[3];
+      if (room) room.curtain = su[4];
+      sound.ding();
+      m.box.innerHTML = `<div class="ci-key"><div class="ci-card" style="--sc:${su[4]}"><b>Room 7</b><span>${su[1]}</span><i></i></div><h2>Here's your key!</h2></div>`;
+      celebrate();
+      G.bump('checkIn');
+      window.setTimeout(() => {
+        m.close();
+        this.go({ kind: 'place', id: 'hotelroom' });
+        toast('Your very own hotel room! Decorate it any way you like.', 'bell', true);
+      }, 1700);
+    });
   }
 
   private togglePiano(): void {
@@ -446,7 +637,7 @@ export class App {
     });
   }
 
-  private openClosetFor(dollId?: string, mode: 'closet' | 'salon' = 'closet', newFriend = false): void {
+  private openClosetFor(dollId?: string, mode: 'closet' | 'salon' = 'closet', newFriend = false, after?: () => void): void {
     this.scene?.hidePopup();
     openCloset({
       dollId, mode, newFriend,
@@ -458,6 +649,7 @@ export class App {
           this.renderTray();
         }
         this.refreshHud();
+        after?.();
       },
     });
   }
@@ -482,6 +674,7 @@ export class App {
     let cards = '';
     if (this.trayTab === 'friends') {
       cards = G.s.dolls.map((d) => `<div class="tcard friend${d.place === place.id ? ' here' : ''}" data-kind="doll" data-id="${d.id}">${headThumb(d.look)}<span class="lbl">${esc(d.name)}</span>${d.place === place.id ? `<i class="here-dot">${icon('check')}</i>` : ''}</div>`).join('') +
+        G.s.pets.map((pt) => `<div class="tcard friend pet-card${pt.place === place.id ? ' here' : ''}" data-kind="pet" data-id="${pt.id}">${petThumb(pt.look)}<span class="lbl">${esc(pt.name)}</span>${pt.place === place.id ? `<i class="here-dot">${icon('check')}</i>` : ''}</div>`).join('') +
         `<div class="tcard add" data-kind="newfriend">${icon('plus')}<span class="lbl">New friend</span></div>`;
     } else if (this.trayTab === 'style') {
       const sc = G.s.scenes[place.id];
@@ -570,6 +763,7 @@ export class App {
       const id = card.dataset.id!;
       if (kind === 'item' && G.owns(id)) this.scene.beginTrayDrag('item', id, e);
       else if (kind === 'doll') this.scene.beginTrayDrag('doll', id, e);
+      else if (kind === 'pet') this.scene.beginTrayDrag('pet', id, e);
       else this.tapCard(card);
     };
     list.onpointerdown = (e) => {
@@ -635,6 +829,17 @@ export class App {
     const id = card.dataset.id!;
     const placeId = this.screen.id;
     if (kind === 'newfriend') return this.openClosetFor(undefined, 'closet', true);
+    if (kind === 'pet') {
+      const pt = G.s.pets.find((x) => x.id === id);
+      if (!pt) return;
+      if (pt.place === placeId) {
+        sound.squeak();
+        return;
+      }
+      this.scene.dropIn('pet', id);
+      this.renderTray();
+      return;
+    }
     if (kind === 'doll') {
       const d = G.s.dolls.find((x) => x.id === id);
       if (!d) return;
@@ -699,11 +904,17 @@ export class App {
       return;
     }
     let left = '';
-    if (s.kind === 'map') left = `<div class="pill title-pill">${icon('map')}<span>Town</span></div>`;
+    if (s.kind === 'map') {
+      left = `<div class="pill title-pill">${icon('map')}<span>Town</span></div>
+        <button class="round-btn hud-big" data-hud="album" title="Photo album">${icon('camera')}</button>
+        <button class="round-btn hud-big sticker-btn" data-hud="stickers" title="Sticker book">${stickerSvg(STICKERS[0].id, 40, { still: true })}</button>
+        <button class="round-btn hud-big gift-btn${surpriseReady() ? ' ready' : ''}" data-hud="surprise" title="Surprise box">${icon('gift')}${surpriseReady() ? '<i class="badge show">1</i>' : ''}</button>`;
+    }
     else {
       const p = PLACES[s.id];
       left = `<button class="round-btn" data-hud="map" title="Town map">${icon('map')}</button>`;
       if (p.room || p.yard) left += `<div class="room-tabs">${HOME_ROOMS.map((r) => `<button class="pill room${r === s.id ? ' on' : ''}" data-room="${r}">${esc(ROOM_SHORT[r] ?? PLACES[r].name)}</button>`).join('')}</div>`;
+      else if ((s.id === 'hotel' || s.id === 'hotelroom') && (G.s.stats.checkIn ?? 0) > 0) left += `<div class="room-tabs">${[['hotel', 'Lobby'], ['hotelroom', 'My Room']].map(([r, n]) => `<button class="pill room${r === s.id ? ' on' : ''}" data-room="${r}">${n}</button>`).join('')}</div>`;
       else left += `<div class="pill title-pill"><span>${esc(p.name)}</span></div>`;
     }
     this.hud.innerHTML = `<div class="hud-left">${left}</div><div class="hud-right">
@@ -724,6 +935,9 @@ export class App {
       if (!act) return;
       sound.tap();
       if (act === 'map') this.go({ kind: 'map' });
+      if (act === 'album') openAlbum(G.profile.id, () => this.refreshHud());
+      if (act === 'stickers') openStickerBook(() => this.refreshHud());
+      if (act === 'surprise') openSurpriseBox(() => this.renderHud());
       if (act === 'season') openSeasons((se) => this.setSeason(se));
       if (act === 'challenges') openChallenges();
       if (act === 'closet') {
@@ -732,6 +946,9 @@ export class App {
       }
       if (act === 'settings') openSettings(() => {
         G.reset();
+        location.hash = '';
+        this.go({ kind: 'title' });
+      }, () => {
         location.hash = '';
         this.go({ kind: 'title' });
       });

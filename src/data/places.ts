@@ -160,6 +160,10 @@ const TOWN_PLACES: Record<string, PlaceDef> = {
     { def: 'f-chandelier-hotel-sweet', x: 800, y: 120 }, { def: 'f-reception-sweet', x: 760, y: 710 }, { def: 'f-luggagecart-sweet', x: 1060, y: 820 },
     { def: 'f-lobbysofa-sweet', x: 330, y: 790 }, { def: 'f-hotelbed-sweet', x: 1400, y: 730 }, { def: 'f-roomservice-sweet', x: 620, y: 875 }, { def: 'plant', x: 70, y: 700 },
   ]),
+  hotelroom: { ...townPlace('hotelroom', 'My Hotel Room', 'hotel', [
+    { def: 'f-hotelbed-sweet', x: 1050, y: 740 }, { def: 'nightstand', x: 1380, y: 700, on: true }, { def: 'rugRound', x: 760, y: 800 },
+    { def: 'wardrobe', x: 170, y: 700 }, { def: 'plant', x: 1540, y: 700 }, { def: 'f-roomservice-sweet', x: 560, y: 870 },
+  ]), building: 'hotel' },
   grocery: townPlace('grocery', 'Grocery Shop', 'grocery', [
     { def: 'f-grocshelf-sweet', x: 160, y: 690 }, { def: 'f-produce-sweet', x: 470, y: 720 }, { def: 'f-bakerycase-sweet', x: 780, y: 710 },
     { def: 'f-freezer-sweet', x: 1060, y: 690 }, { def: 'f-checkout-sweet', x: 1380, y: 800 }, { def: 'f-cart-sweet', x: 620, y: 860 },

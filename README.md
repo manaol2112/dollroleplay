@@ -16,6 +16,9 @@ pass, updates the live game.
 
 ## How to play
 
+- **Who's playing?** Each kid gets their own town, friends, coins and challenges (up to 4 players).
+  Pick your player on the title screen; switch or remove players in Settings.
+
 - **Drag friends** up from the tray at the bottom into any room. Drop them on a chair, sofa, bed, swing,
   seesaw, slide, salon chair or piano bench to use it. Drag them back down to the tray to send them home.
 - **Tap a friend** to make them giggle, then tap **Dress up** to open the closet.
@@ -33,9 +36,9 @@ pass, updates the live game.
   hospital, hotel, car shop and theme park can each be decorated like the house, with about 500 extra
   pieces of their own (bookshelves, cinema seats, shelves of food, hospital beds, 63 cars, Ferris wheel,
   carousel, teacups and more), and each has its own activity:
-  - **Library:** 14 illustrated picture books, each with a moral (honesty, patience, sharing, kindness,
-    bravery...). Tap **Read to me** to hear them read aloud.
-  - **Cinema:** 6 animated movies with curtains, a calm film score, subtitles read aloud, and popcorn.
+  - **Library:** 24 illustrated picture books, each with a moral (honesty, patience, sharing, kindness,
+    bravery, big feelings...). Tap **Read to me** to hear them read aloud, with each word lighting up.
+  - **Cinema:** 10 animated movies with curtains, a calm film score, subtitles read aloud, and popcorn.
     Stories are read in the most natural voice the device has (never the robotic novelty voices);
     pick a different one under **Settings › Story voice**. On iPad, downloading a Premium voice such
     as Ava (iPad Settings › Accessibility › Spoken Content › Voices) makes it sound even better.
@@ -47,6 +50,24 @@ pass, updates the live game.
   - **Theme park:** a big park that scrolls sideways (swipe, or tap the arrows). The rides run on their
     own; tap one to stop or start it. Drop friends on a seat to ride along: the carousel turns, the
     Ferris wheel goes round, and the coaster and water slide zoom them to the bottom.
+- **A day at home:** friends get hungry, sleepy, messy or bored (a thought bubble shows what they want;
+  tap a friend to see their meters). Feed them, tuck them into bed, run a bubble bath, or go somewhere
+  fun. Groceries you buy go into the home fridge, the kitchen has a **Cook** button, and every home
+  room has a **Night** button (lamps glow, the stars come out).
+- **Pets:** adopt a puppy, kitten, bunny, hamster, pony, unicorn, duckling, panda, fox or piglet at the
+  Mall's **Pet Shop** (the first one is free). Choose fur, markings and eyes; dress them up with 76
+  accessories; bathe, feed, play and nap them. Pets ride along in the Friends tray, wander around, sit
+  on beds and sofas, and eat snacks you drop on them.
+- **Camera and Story Maker:** tap **Photo** in any place to save a snapshot to your album (on the town
+  map). Make your own movie from your photos with your own recorded voice or captions, then watch it
+  with curtains and music. Photos can be saved to the iPad with the share button.
+- **Stickers and surprises:** playing earns stickers (104 to collect in 12 sets); stick them on your own
+  scrapbook page. A daily surprise box on the town map gives coins, a sticker or a free item.
+- **Action games:** go-kart racing and ice skating at the Playground, a swim race in the Hotel pool, and
+  ring toss and balloon pop at the Theme Park (win plush prizes).
+- **Show time:** fashion shows with judges at the Mall, and a dance party rhythm game at the Theater.
+- **Seasonal fun** in the Yard: build a snowman, carve a pumpkin, hunt and paint eggs, or build a sandcastle.
+- **Hotel:** check in at the front desk to get a key card and your own room to decorate.
 - **Salon nails:** paint, decorate and dry nails; the manicure shows on the doll.
 - **Sports:** basketball and soccer penalty kicks at the playground.
 - **Music:** piano, xylophone, guitar, harp, violin, flute, trumpet and drums at the theater. The
@@ -87,3 +108,9 @@ Add `#bedroom`, `#school`, `#library`, `#themepark` and so on to the game's URL 
 | `src/data/` | Rules with no screen code: save format, shop and challenges (`state.ts`), places, quiz, songs, books and movies (`stories.ts`) |
 | `src/engine/` | The interactive scene (drag, drop, sit, eat), sound, and weather/confetti effects |
 | `src/ui/` | Screens and panels: town map, tray, closet, shop, challenges, lesson, instruments, and the town activities (`activities.ts`: reader, movie player, grocery, kitchen, doctor, car wash) |
+| `src/ui/pets.ts`, `src/art/pets.ts`, `src/data/pets.ts` | Pets: drawing, adoption and care |
+| `src/ui/minigames.ts`, `showtime.ts`, `seasonfun.ts` | Action games, fashion show and dance, seasonal activities |
+| `src/engine/photos.ts`, `src/ui/album.ts`, `storymaker.ts` | Camera, photo album (IndexedDB) and Story Maker |
+| `src/ui/stickers.ts`, `surprise.ts`, `src/art/stickers.ts` | Sticker book and the daily surprise box |
+| `src/data/needs.ts` | Friends' hunger, sleep, clean and fun |
+| `*-dev.html` | Dev pages that open one feature directly under `npm run dev` |
