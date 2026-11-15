@@ -270,40 +270,42 @@ function floorTile(fl: FloorStyle): { w: number; h: number; body: string } | nul
   }
 }
 
-export function floorArt(fl: FloorStyle, top: number): string {
-  let g = R(-600, top, 2800, 1400, 0, fl.a);
+/** The floor from x0 to x1 (wide places pass a bigger span). */
+export function floorArt(fl: FloorStyle, top: number, x0 = -600, x1 = 2200): string {
+  const W = x1 - x0;
+  let g = R(x0, top, W, 1400, 0, fl.a);
   const t = floorTile(fl);
   if (t) {
     const id = pid('fl');
-    g += `<defs>${pattern(id, t.w, t.h, t.body, `x="0" y="${top}"`)}</defs>` + R(-600, top, 2800, 1400, 0, `url(#${id})`);
+    g += `<defs>${pattern(id, t.w, t.h, t.body, `x="0" y="${top}"`)}</defs>` + R(x0, top, W, 1400, 0, `url(#${id})`);
   } else if (fl.kind === 'wood') {
     for (let row = 0, y = top; y < top + 900; row++, y += 46) {
-      g += R(-600, y, 2800, 3, 0, fl.b);
-      for (let x = -600 + ((row * 173) % 260); x < 2200; x += 260) g += R(x, y, 3, 46, 0, fl.b) + R(x + 40, y + 14, 70, 3, 1.5, light(fl.a, 0.25), 'opacity="0.5"');
+      g += R(x0, y, W, 3, 0, fl.b);
+      for (let x = x0 + ((row * 173) % 260); x < x1; x += 260) g += R(x, y, 3, 46, 0, fl.b) + R(x + 40, y + 14, 70, 3, 1.5, light(fl.a, 0.25), 'opacity="0.5"');
     }
   } else if (fl.kind === 'tiles') {
-    for (let row = 0, y = top; y < top + 900; row++, y += 70) for (let col = 0, x = -600; x < 2200; col++, x += 90) if ((row + col) % 2) g += R(x, y, 90, 70, 0, fl.b);
-    g += R(-600, top, 2800, 1400, 0, 'url(#g-glass)', 'opacity="0.25"');
+    for (let row = 0, y = top; y < top + 900; row++, y += 70) for (let col = 0, x = x0; x < x1; col++, x += 90) if ((row + col) % 2) g += R(x, y, 90, 70, 0, fl.b);
+    g += R(x0, top, W, 1400, 0, 'url(#g-glass)', 'opacity="0.25"');
   } else if (fl.kind === 'carpet') {
-    for (let i = 0; i < 160; i++) g += C(((i * 397) % 2800) - 600, top + 10 + ((i * 131) % 700), 3, fl.b);
+    for (let i = 0; i < 160 * (W / 2800); i++) g += C(((i * 397) % W) + x0, top + 10 + ((i * 131) % 700), 3, fl.b);
   } else if (fl.kind === 'marble') {
-    for (let i = 0; i < 9; i++) {
-      const x = ((i * 311) % 2400) - 400;
+    for (let i = 0; i < 9 * (W / 2800); i++) {
+      const x = ((i * 311) % (W - 400)) + x0 + 200;
       g += P(`M${x} ${top} q40 80 10 160 t30 200 t-20 200`, 'none', `stroke="${fl.b}" stroke-width="3" opacity="0.8"`);
     }
-    for (let y = top; y < top + 900; y += 120) g += R(-600, y, 2800, 2, 0, fl.b, 'opacity="0.6"');
+    for (let y = top; y < top + 900; y += 120) g += R(x0, y, W, 2, 0, fl.b, 'opacity="0.6"');
   } else if (fl.kind === 'grass') {
-    for (let i = 0; i < 140; i++) {
-      const x = ((i * 397) % 2800) - 600;
+    for (let i = 0; i < 140 * (W / 2800); i++) {
+      const x = ((i * 397) % W) + x0;
       const y = top + 16 + ((i * 131) % 600);
       g += P(`M${x} ${y} l-5 -14 M${x} ${y} l5 -16 M${x} ${y} l0 -12`, 'none', `stroke="${fl.b}" stroke-width="3.5" stroke-linecap="round" opacity="0.8"`);
       if (fl.c === 'flowers' && i % 3 === 0) g += flowerG(x + 20, y - 4, 9, ['#ff9ec7', '#fff', '#ffd36b', '#c99bff'][i % 4]);
     }
   } else if (fl.kind === 'sand') {
-    for (let i = 0; i < 200; i++) g += C(((i * 397) % 2800) - 600, top + 10 + ((i * 131) % 700), 2 + (i % 3), fl.b, 'opacity="0.7"');
+    for (let i = 0; i < 200 * (W / 2800); i++) g += C(((i * 397) % W) + x0, top + 10 + ((i * 131) % 700), 2 + (i % 3), fl.b, 'opacity="0.7"');
     g += [[200, 760], [1300, 820]].map(([x, y]) => P(`M${x} ${y} q20 -26 40 0 q-20 10 -40 0Z`, '#ffb3c7')).join('');
   }
-  return g + R(-600, top, 2800, 1400, 0, 'url(#g-floorDepth)');
+  return g + R(x0, top, W, 1400, 0, 'url(#g-floorDepth)');
 }
 
 // ---------------- trim and curtains ----------------

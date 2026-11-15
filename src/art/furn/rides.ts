@@ -9,7 +9,7 @@
 import type { Season } from '../../types';
 import {
   type FurnCat, type FurnDef, type Mount, type SeatDef, C, E, P, R, Ln, box, dark, light, f, glow, motif,
-  heartD, starD, sparkleD, flowerG, bowG, stylePrice, artCtx,
+  heartD, starD, sparkleD, flowerG, bowG, stylePrice, artCtx, type Orbit, orbitAt, orbitAngle, orbitParts, orbitHalf,
 } from './kit';
 
 type Art = (c: string, on: boolean) => string;
@@ -179,7 +179,7 @@ function ferris(style: string, name: string, kind: Cabin): FurnDef {
   return it(`f-ferriswheel-${style}`, name, ride('Ferris Wheels'), style, 'floor', 600, 560, (c, on) => ferrisArt(c, on, style, kind, colOf), {
     front: (c, on) => spin(on, cabins(c, on, cabinFront)),
     seats: FW_PINS.map(([x, y]) => ({ x, y, pose: 'sit' as const, anim: { pivot: [cx, cy] as Pt, amp: 1, dur, kind: 'wheel' as const } })),
-    animWhenUsed: true,
+    toggle: true, defaultOn: true,
   });
 }
 function ferrisArt(c: string, on: boolean, style: string, kind: Cabin, colOf: (c: string, i: number) => string): string {
@@ -230,10 +230,13 @@ function ferrisArt(c: string, on: boolean, style: string, kind: Cabin, colOf: (c
 const flagPair = (x: number, y: number, th: Theme) => flag(x, y, th.deep, 60) + C(x, y - 62, 5, GOLD);
 
 // =====================================================================================
-// CAROUSELS: 'bounce' seats; each horse goes up and down its pole with its own phase.
+// CAROUSELS: 'orbit' seats; six horses ride round the centre drum, bobbing on their poles,
+// shrinking and turning around as they pass behind it.
 // =====================================================================================
 type Mount2 = 'horse' | 'pony' | 'candyHorse' | 'rocket' | 'unicorn';
-const CR = { y: -210, amp: 40, dur: 2.4, xs: [-200, 0, 200], ph: [0, 0.8, 1.6] };
+const CR = { cy: -232, rx: 228, ry: 46, dur: 10, lift: 26, n: 6, disc: -64, discRy: 52 };
+/** Orbit of horse i (an even share of the lap apart). */
+const crOrbit = (i: number): Orbit => ({ cx: 0, cy: CR.cy, rx: CR.rx, ry: CR.ry, dur: CR.dur, phase: (i * CR.dur) / CR.n, lift: CR.lift });
 /** A horse (or rocket) with its saddle at (0, 0), facing right. */
 function steed(kind: Mount2, col: string, th: Theme): string {
   if (kind === 'rocket') {
@@ -268,23 +271,36 @@ function carousel(style: string, name: string, kind: Mount2): FurnDef {
     const top = -470;
     const c1 = style === 'space' ? th.main : c;
     const c2 = style === 'princess' ? '#fff' : style === 'space' ? th.deep : style === 'rainbow' ? '#fff' : th.trim;
+    const metal = th.metal === GOLD ? '#e8c96a' : '#d8dce6';
+    const deck = style === 'space' ? th.deep : dark(c1, 0.12);
     let s = '';
+    // turntable: skirt with chasing lights, then the round deck seen from the front
+    s += E(0, -2, 304, 22, dark(deck, 0.2)) + R(-304, -66, 608, 64, 0, deck) + E(0, -2, 304, 22, deck) + R(-304, -66, 608, 64, 0, SHY, O(0.35));
+    s += bulbsAlong(Array.from({ length: 13 }, (_, i) => [-264 + i * 44, -30 + Math.abs(i - 6) * -1.2] as Pt), 5, [th.bulb, '#fff'], on);
+    s += E(0, CR.disc, 304, CR.discRy, light(c1, 0.3)) + E(0, CR.disc, 304, CR.discRy, 'none', `stroke="${dark(c1, 0.1)}" stroke-width="5"`);
+    // painted rings on the deck turn with it
+    const ring = E(0, CR.disc, 240, CR.discRy * 0.78, 'none', `stroke="#fff" stroke-width="4" stroke-dasharray="26 22" opacity="0.7"`);
+    s += on ? `<g>${ring.replace('/>', '><animate attributeName="stroke-dashoffset" values="0;-480" dur="' + CR.dur + 's" repeatCount="indefinite"/></ellipse>')}</g>` : ring;
+    s += E(0, CR.disc, 120, CR.discRy * 0.42, light(c1, 0.45));
+    // one horse with its pole; the pole slides round with the horse but doesn't bob
+    const horse = (i: number, half: 'front' | 'back') => {
+      const o = crOrbit(i);
+      const p0 = orbitAt(o, orbitAngle(o, 0));
+      const col = cols(c)[(i * 2) % cols(c).length];
+      const poleArt = style === 'candy' ? candyStripe(-6, -240, 12, 240 + 168, '#fff', th.deep, 34) : R(-6, -240, 12, 408, 6, metal) + R(-6, -240, 4, 408, 2, '#fff', O(0.5));
+      const horseArt = G(at(0, 0, 0.86), steed(kind, col, th));
+      const body = on
+        ? (() => { const pt = orbitParts(o); return pt.move + poleArt + pt.lift + pt.scale + horseArt + '</g></g></g>'; })()
+        : G(`scale(${p0.sx.toFixed(3)} ${p0.sy.toFixed(3)})`, horseArt).replace(/^/, poleArt);
+      const inner = G(at(p0.x, p0.y), body);
+      if (on) return `<g>${orbitHalf(o, half)}${inner}</g>`;
+      return p0.front === (half === 'front') ? inner : '';
+    };
+    for (let i = 0; i < CR.n; i++) s += horse(i, 'back');
     // centre drum with mirrors
-    s += box(-56, top + 40, 112, 410, 10, style === 'space' ? th.deep : light(c1, 0.25)) + R(-40, top + 80, 80, 300, 30, '#fff', O(0.35));
-    for (let i = 0; i < 3; i++) s += R(-26, top + 100 + i * 96, 52, 70, 26, '#e8f6ff') + R(-26, top + 100 + i * 96, 52, 70, 26, GLASS) + motif(th.motif === 'planet' ? 'star' : th.motif, 0, top + 135 + i * 96, 13);
-    // two smaller horses behind, then the poles and the riding horses
-    for (const [x, ph] of [[-100, 0.4], [100, 1.2]] as Pt[]) {
-      const p = R(x - 4, top + 40, 8, 420, 4, th.metal === GOLD ? '#e8c96a' : '#d8dce6', O(0.9));
-      s += p + when(on, lift(CR.amp, CR.dur, ph), G(at(x, CR.y - 46, 0.62), steed(kind, light(cols(c)[1 % cols(c).length], 0.2), th)));
-    }
-    s += E(0, -48, 300, 26, dark(style === 'space' ? th.deep : c1, 0.25), O(0.25));
-    CR.xs.forEach((x, i) => {
-      const pole = style === 'candy' ? candyStripe(x - 6, top + 40, 12, 430, '#fff', th.deep, 30) : R(x - 6, top + 40, 12, 430, 6, th.metal) + R(x - 6, top + 40, 4, 430, 2, '#fff', O(0.5));
-      s += pole + when(on, lift(CR.amp, CR.dur, CR.ph[i]), G(at(x, CR.y), steed(kind, cols(c)[(i * 2) % cols(c).length], th)));
-    });
-    // base drum with lights
-    s += box(-300, -56, 600, 56, 18, style === 'space' ? th.deep : dark(c1, 0.12), 'none', 'y') + R(-292, -62, 584, 14, 7, light(c1, 0.35));
-    s += bulbsAlong(Array.from({ length: 13 }, (_, i) => [-264 + i * 44, -28] as Pt), 5, [th.bulb, '#fff'], on);
+    s += box(-58, top + 40, 116, 420 + CR.disc + 4, 10, style === 'space' ? th.deep : light(c1, 0.25)) + R(-42, top + 80, 84, 290, 30, '#fff', O(0.35));
+    for (let i = 0; i < 3; i++) s += R(-26, top + 96 + i * 92, 52, 66, 26, '#e8f6ff') + R(-26, top + 96 + i * 92, 52, 66, 26, GLASS) + motif(th.motif === 'planet' ? 'star' : th.motif, 0, top + 129 + i * 92, 13);
+    for (let i = 0; i < CR.n; i++) s += horse(i, 'front');
     // canopy: cone roof, valance and topper
     const roof = pd`M-318 ${top + 6} L0 ${top - 66} L318 ${top + 6}Z`;
     s += P(roof, c1);
@@ -294,17 +310,24 @@ function carousel(style: string, name: string, kind: Mount2): FurnDef {
       else if (style === 'rainbow') s += P(pd`M${x0} ${top + 6} L0 ${top - 66} L${x0 + 79.5} ${top + 6}Z`, RAINBOW[i % 6]);
     }
     s += P(pd`M-318 ${top + 6} L0 ${top - 66} L0 ${top + 6}Z`, '#fff', O(0.12));
-    s += box(-310, top, 620, 44, 12, style === 'space' ? th.deep : style === 'princess' ? '#fff' : dark(c1, 0.08)) + scallops(-310, 310, top + 44, 10, 22, style === 'rainbow' ? RAINBOW : [c1, c2]);
-    if (style === 'space') for (let i = 0; i < 6; i++) s += P(starD(-250 + i * 100, top + 22, 9), th.trim);
+    // the valance pattern slides round while the ride turns
+    const val = box(-310, top, 620, 44, 12, style === 'space' ? th.deep : style === 'princess' ? '#fff' : dark(c1, 0.08)) + scallops(-310, 310, top + 44, 10, 22, style === 'rainbow' ? RAINBOW : [c1, c2]);
+    s += val;
+    if (style === 'space') for (let i = 0; i < 6; i++) s += on ? A(blink(1.2, i * 0.2, 0.3), P(starD(-250 + i * 100, top + 22, 9), th.trim)) : P(starD(-250 + i * 100, top + 22, 9), th.trim);
     else s += bulbsAlong(Array.from({ length: 12 }, (_, i) => [-280 + i * 51, top + 22] as Pt), 5, [th.bulb, '#fff', style === 'princess' ? '#ffd24a' : th.alt], on);
-    if (style === 'princess') s += G(at(0, top - 64), P('M-26 0 L-26 -26 L-13 -12 L0 -34 L13 -12 L26 -26 L26 0Z', GOLD) + C(0, -36, 5, '#ff7eb6'));
-    else if (style === 'space') s += G(at(0, top - 72), C(0, 0, 16, th.alt) + E(0, 0, 30, 7, 'none', `stroke="${th.trim}" stroke-width="3"`));
-    else s += flag(0, top - 62, style === 'candy' ? th.alt : th.deep, 40) + C(0, top - 64, 8, '#fff');
+    const topper = style === 'princess' ? G(at(0, top - 64), P('M-26 0 L-26 -26 L-13 -12 L0 -34 L13 -12 L26 -26 L26 0Z', GOLD) + C(0, -36, 5, '#ff7eb6'))
+      : style === 'space' ? G(at(0, top - 72), C(0, 0, 16, th.alt) + E(0, 0, 30, 7, 'none', `stroke="${th.trim}" stroke-width="3"`))
+      : flag(0, top - 62, style === 'candy' ? th.alt : th.deep, 40) + C(0, top - 64, 8, '#fff');
+    s += on ? A(bob(0, -6, 1.2), topper) : topper;
     return s;
   };
-  return it(`f-carousel-${style}`, name, ride('Carousels'), style, 'floor', 640, 550, art, {
-    seats: CR.xs.map((x, i) => ({ x, y: CR.y, pose: 'sit' as const, anim: { pivot: [x, CR.y] as Pt, amp: CR.amp, dur: CR.dur, phase: CR.ph[i], kind: 'bounce' as const } })),
-    animWhenUsed: true, sfx: 'music',
+  return it(`f-carousel-${style}`, name, ride('Carousels'), style, 'floor', 640, 560, art, {
+    seats: Array.from({ length: CR.n }, (_, i) => {
+      const o = crOrbit(i);
+      const p0 = orbitAt(o, orbitAngle(o, 0));
+      return { x: Math.round(p0.x), y: Math.round(p0.y), pose: 'sit' as const, anim: { pivot: [0, CR.cy] as Pt, amp: CR.rx, ry: CR.ry, dur: CR.dur, phase: o.phase, lift: CR.lift, kind: 'orbit' as const } };
+    }),
+    toggle: true, defaultOn: true, sfx: 'music',
   });
 }
 
@@ -357,7 +380,7 @@ function teacups(style: string, name: string, kind: Cup): FurnDef {
   return it(`f-teacups-${style}`, name, ride('Teacups'), style, 'floor', 640, 420, art, {
     front: (c, on) => [0, 1, 2].map((i) => cupG(on, i, cupFront(kind, colOf(c, i), th))).join(''),
     seats: TC.xs.map((x, i) => ({ x, y: TC.y, pose: 'sit' as const, anim: { pivot: [x, TC.y + TC.rad] as Pt, amp: TC.dirs[i], dur: TC.dur, phase: TC.ph[i], kind: 'wheel' as const } })),
-    animWhenUsed: true,
+    toggle: true, defaultOn: true,
   });
 }
 
@@ -406,7 +429,7 @@ function bumpercars(style: string, name: string): FurnDef {
   return it(`f-bumpercars-${style}`, name, ride('Bumper Cars'), style, 'floor', 660, 450, art, {
     front: (c, on) => carG(on, 0, car(0, c)) + carG(on, 1, car(1, c)),
     seats: BC.xs.map((x, i) => ({ x, y: BC.y, pose: 'sit' as const, anim: { pivot: [x, BC.y] as Pt, amp: BC.amp, dur: BC.dur, phase: BC.ph[i], kind: 'sway' as const } })),
-    animWhenUsed: true,
+    toggle: true, defaultOn: true,
   });
 }
 
@@ -422,7 +445,7 @@ const COASTER = smooth(COASTER_PTS, 5);
 function coaster(style: string, name: string): FurnDef {
   const th = TH[style];
   const d = polyD(COASTER);
-  const art: Art = (c) => {
+  const art: Art = (c, on) => {
     const sup = style === 'space' ? th.deep : style === 'rainbow' ? '#fff' : style === 'candy' ? '#fff' : '#fff3f8';
     let s = '';
     if (style === 'space') for (const [x, y, z] of [[-200, -440, 10], [80, -420, 12], [300, -330, 8], [-40, -300, 7]]) s += P(sparkleD(x, y, z), th.trim);
@@ -445,11 +468,17 @@ function coaster(style: string, name: string): FurnDef {
       ? P('M-50 -38 L34 -38 Q60 -30 64 -10 L64 0 L-50 0Z', '#c9cfdd') + P('M-50 -38 L-70 -60 L-44 -38Z', th.trim) + C(40, -20, 10, '#8ff3ff') + C(40, -20, 10, GLASS)
       : box(-50, -40, 104, 40, 14, style === 'rainbow' ? '#ff7a7a' : style === 'candy' ? '#fff' : th.deep) + R(-50, -40, 104, 10, 5, '#fff', O(0.4)) + (style === 'candy' ? motif('candy', 0, -18, 14) : style === 'rainbow' ? motif('rainbow', 0, -20, 14) : P(heartD(0, -28, 12), '#fff'));
     s += G(at(-262, -334), cart + C(-30, 2, 8, INK) + C(30, 2, 8, INK));
+    if (on) {
+      // another cart zooms round the track: up the hill, down the drop, round the loop and back
+      const lap = polyD(COASTER.slice(COASTER.findIndex(([x]) => x >= -262)));
+      const runner = G('scale(0.8)', G('translate(0 -10)', cart + C(-30, 2, 8, INK) + C(30, 2, 8, INK)) + C(-14, -50, 13, '#ffd9b8') + C(16, -50, 13, '#c98a5a') + S('M-24 -58 L-34 -84 M24 -58 L34 -84', '#ffd9b8', 6));
+      s += `<g><animateMotion dur="4.2s" repeatCount="indefinite" rotate="auto" path="${lap}" keyPoints="0;0.2;1" keyTimes="0;0.4;1" calcMode="linear"/>${runner}</g>`;
+    }
     s += flag(-336, -346, style === 'space' ? th.trim : th.deep, 46) + txt(-280, -360, 'GO!', 22, '#fff', style === 'space' ? th.alt : th.deep);
     return s;
   };
   const start = COASTER.findIndex(([x]) => x >= -262);
-  return it(`f-coaster-${style}`, name, ride('Roller Coasters'), style, 'floor', 690, 470, art, { seats: [pathSeat(COASTER.slice(start), 34)] });
+  return it(`f-coaster-${style}`, name, ride('Roller Coasters'), style, 'floor', 690, 470, art, { seats: [pathSeat(COASTER.slice(start), 34)], toggle: true, defaultOn: true, sfx: 'music' });
 }
 
 // =====================================================================================
@@ -490,7 +519,7 @@ function droptower(style: string, name: string): FurnDef {
   return it(`f-droptower-${style}`, name, ride('Drop Towers'), style, 'floor', 320, 610, art, {
     front,
     seats: DT.xs.map((x) => ({ x, y: DT.y, pose: 'sit' as const, anim: { pivot: [x, DT.y] as Pt, amp: DT.amp, dur: DT.dur, kind: 'bounce' as const } })),
-    animWhenUsed: true,
+    toggle: true, defaultOn: true,
   });
 }
 
@@ -540,7 +569,7 @@ function swingride(style: string, name: string): FurnDef {
   return it(`f-swingride-${style}`, name, ride('Swing Rides'), style, 'floor', 640, 590, art, {
     front,
     seats: SW.xs.map((x, i) => ({ x, y: SW.y, pose: 'sit' as const, anim: { pivot: [x, SW.top] as Pt, amp: SW.amp, dur: SW.dur, phase: SW.ph[i] } })),
-    animWhenUsed: true,
+    toggle: true, defaultOn: true,
   });
 }
 
@@ -582,7 +611,7 @@ function ship(style: string, name: string): FurnDef {
   return it(`f-pirateship-${style}`, name, ride('Swinging Ships'), style, 'floor', 640, 520, art, {
     front,
     seats: SH.xs.map((x) => ({ x, y: SH.y, pose: 'sit' as const, anim: { pivot: SH.pivot, amp: SH.amp, dur: SH.dur } })),
-    animWhenUsed: true,
+    toggle: true, defaultOn: true,
   });
 }
 const flagWave = (x: number, y: number, col: string) => Ln(x, y, x, y - 36, '#a86b4a', 4) + A(`<animateTransform attributeName="transform" type="skewY" values="0;-10;0" dur="1.4s" repeatCount="indefinite"/>`, G(at(x, y - 36), P('M0 0 L40 9 L0 20Z', col)));
@@ -595,7 +624,7 @@ const FLUME = smooth(FLUME_PTS, 5);
 function flume(style: string, name: string): FurnDef {
   const th = TH[style];
   const d = polyD(FLUME);
-  const art: Art = (c) => {
+  const art: Art = (c, on) => {
     const wood = style === 'woodland';
     let s = '';
     // supports
@@ -621,11 +650,16 @@ function flume(style: string, name: string): FurnDef {
         ? E(0, -12, 50, 16, '#ffd36b') + E(0, -12, 30, 8, th.main) + [-34, 0, 34].map((x) => R(x - 5, -26, 10, 26, 4, '#ff7a6b')).join('')
         : E(0, -14, 54, 18, '#fff') + P(heartD(0, -24, 10), c);
     s += G(at(-262, -372), boat);
+    if (on) {
+      const chute = polyD(FLUME.slice(FLUME.findIndex(([x]) => x >= -262)));
+      const ring = E(0, -12, 30, 12, ['#ff7eb6', '#ffd36b', '#7fe0b0'][style.length % 3]) + E(0, -14, 14, 5, WATER) + E(-12, -16, 8, 3, '#fff', O(0.5));
+      s += `<g><animateMotion dur="3s" repeatCount="indefinite" path="${chute}" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".5 0 .9 .6"/>${ring}</g>`;
+    }
     s += style === 'beach' ? motif('fish', -290, -420, 18) : wood ? leafy(-290, -400) + leafy(-250, -404) : flag(-336, -386, th.deep, 40);
     return s;
   };
   const start = FLUME.findIndex(([x]) => x >= -262);
-  return it(`f-waterslide-${style}`, name, ride('Water Rides'), style, 'floor', 690, 440, art, { seats: [pathSeat(FLUME.slice(start), 26)] });
+  return it(`f-waterslide-${style}`, name, ride('Water Rides'), style, 'floor', 690, 440, art, { seats: [pathSeat(FLUME.slice(start), 26)], toggle: true, defaultOn: true });
 }
 const leafy = (x: number, y: number) => E(x - 8, y, 14, 8, LEAF, `transform="rotate(-30 ${x - 8} ${y})"`) + E(x + 8, y, 14, 8, '#4fae7a', `transform="rotate(30 ${x + 8} ${y})"`);
 
@@ -680,7 +714,7 @@ function train(style: string, name: string): FurnDef {
   return it(`f-kiddietrain-${style}`, name, ride('Kiddie Trains'), style, 'floor', 680, 340, art, {
     front,
     seats: KT.xs.map((x) => ({ x, y: KT.y, pose: 'sit' as const, anim: { pivot: [x, KT.y] as Pt, amp: KT.amp, dur: KT.dur, kind: 'sway' as const } })),
-    animWhenUsed: true,
+    toggle: true, defaultOn: true,
   });
 }
 
@@ -721,7 +755,7 @@ function balloonride(style: string, name: string): FurnDef {
   return it(`f-balloonride-${style}`, name, ride('Balloon Rides'), style, 'floor', 540, 580, art, {
     front,
     seats: HB.xs.map((x, i) => ({ x, y: HB.y, pose: 'sit' as const, anim: { pivot: [x, HB.y] as Pt, amp: HB.amp, dur: HB.dur, phase: HB.ph[i], kind: 'bounce' as const } })),
-    animWhenUsed: true,
+    toggle: true, defaultOn: true,
   });
 }
 

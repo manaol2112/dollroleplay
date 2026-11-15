@@ -89,9 +89,25 @@ function sun(x: number, y: number, s: Season): string {
 }
 
 /** Sky, sun, clouds and rolling hills down to the horizon. */
-export function landscape(s: Season, horizon: number, opts: { trees?: number[]; sunX?: number } = {}): string {
+export function landscape(s: Season, horizon: number, opts: { trees?: number[]; sunX?: number; span?: [number, number] } = {}): string {
   const L = SEASON_LOOK[s];
   const id = uid('sky');
+  if (opts.span) {
+    // a wide place: sky, clouds and gently rolling hills all the way across
+    const [x0, x1] = opts.span;
+    let g = skyDefs(id, s) + R(x0, BLEED.y0, x1 - x0, BLEED.h, 0, `url(#${id})`);
+    g += sun(opts.sunX ?? 1340, 130, s);
+    for (let x = x0 + 300, i = 0; x < x1; x += 620, i++) g += cloud(x, [120, 70, 200, 150][i % 4], [1, 0.8, 0.7, 0.9][i % 4], [120, -90, 70, -60][i % 4]);
+    g += birds(s);
+    const hills = (base: number, amp: number, step: number, seed: number) => {
+      let d = `M${x0} ${base}`;
+      for (let x = x0, i = 0; x < x1; x += step, i++) d += ` Q${x + step / 2} ${base - amp * (0.6 + 0.4 * Math.sin(i * 1.7 + seed))} ${x + step} ${base - amp * 0.15}`;
+      return d + ` L${x1} ${horizon + 40} L${x0} ${horizon + 40}Z`;
+    };
+    g += P(hills(horizon - 50, 140, 800, 0.4), L.hill1) + P(hills(horizon - 15, 95, 900, 2.1), L.hill2);
+    for (const [i, x] of (opts.trees ?? []).entries()) g += seasonTree(x, horizon + 10, 0.8, s, i);
+    return g;
+  }
   let g = skyDefs(id, s) + full(`url(#${id})`);
   g += sun(opts.sunX ?? 1340, 130, s);
   g += cloud(260, 120, 1.0, 120) + cloud(820, 70, 0.8, -90) + cloud(1500, 210, 0.7, 70) + birds(s);

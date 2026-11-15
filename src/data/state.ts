@@ -3,10 +3,10 @@ import { HAIR_BY_ID } from '../art/doll';
 import { FURN_BY_ID } from '../art/furniture';
 import { FLOOR_BY_ID, WALL_BY_ID } from '../art/scenes';
 import { WEAR_BY_ID } from '../art/wear';
-import { SEASONS, type Doll, type SceneState, type Season } from '../types';
+import { SEASONS, type Doll, type PlacedItem, type SceneState, type Season } from '../types';
 import { CHALLENGES, SEASON_CHALLENGES, challengeById, repeatChallenge, type ChallengeDef } from './challenges';
 import { starterLooks } from './looks';
-import { PLACES, designable, indoorStyle } from './places';
+import { OLD_PARK_LAYOUT, PARK_LAYOUT, PLACES, designable, indoorStyle } from './places';
 
 export interface GameState {
   v: 1;
@@ -26,6 +26,8 @@ export interface GameState {
   seenIntro: boolean;
   /** Leo and Dad joined saves made before boys existed. */
   boysAdded: boolean;
+  /** 1 once the theme park has been spread over its wider layout. */
+  parkV?: number;
   /** School grade for lessons (1-5); unset until chosen. */
   grade?: number;
   /** Books read and movies watched, as 'book:<id>' / 'movie:<id>'. */
@@ -57,7 +59,7 @@ export function freshScene(s: GameState, placeId: string): SceneState {
 export function newState(now = new Date()): GameState {
   const s: GameState = {
     v: 1, coins: START_COINS, owned: [], dolls: [], scenes: {}, season: seasonFor(now), stats: {}, visited: [], seasonsSeen: [seasonFor(now)], songsDone: [],
-    ch: { list: [], base: {}, claimed: [], next: 0, rep: 0 }, daily: '', settings: { sound: true, music: true }, nextUid: 1, seenIntro: false, boysAdded: true,
+    ch: { list: [], base: {}, claimed: [], next: 0, rep: 0 }, daily: '', settings: { sound: true, music: true }, nextUid: 1, seenIntro: false, boysAdded: true, parkV: 1,
   };
   // Lily, Mia, Rosie and Mom keep ids d1-d4 from before boys existed; Leo and Dad are d5 and d6.
   const spots: Record<string, [string, number, number, string]> = {
@@ -117,6 +119,23 @@ export function parseState(json: string | null): GameState | null {
   if (s.storiesDone && !Array.isArray(s.storiesDone)) s.storiesDone = [];
   const maxUid = Math.max(0, ...Object.values(s.scenes).flatMap((sc) => sc.items.map((i) => i.uid)));
   s.nextUid = Math.max(s.nextUid || 1, maxUid + 1);
+  if (!raw.parkV) {
+    // The theme park grew from one screen to three: spread the original rides out.
+    const sc = s.scenes.themepark;
+    const isOld = (it: PlacedItem) => OLD_PARK_LAYOUT.some((o) => o.def === it.def && o.x === it.x && o.y === it.y);
+    if (sc.items.every(isOld)) {
+      const fresh = freshScene(s, 'themepark');
+      sc.items = fresh.items;
+      for (const d of s.dolls) if (d.place === 'themepark') d.seat = null;
+    } else {
+      for (const it of sc.items) {
+        if (!isOld(it)) continue;
+        const to = PARK_LAYOUT.find((o) => o.def === it.def);
+        if (to) Object.assign(it, { x: to.x, y: to.y });
+      }
+    }
+    s.parkV = 1;
+  }
   s.ch.list = (s.ch.list ?? []).filter((id) => challengeById(id));
   refreshChallenges(s);
   return s;

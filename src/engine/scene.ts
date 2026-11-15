@@ -4,6 +4,7 @@ import { PALETTE } from '../art/color';
 import { shadow } from '../art/defs';
 import { type Expr, dollHeight, hipHeight, renderDoll } from '../art/doll';
 import { FURN_BY_ID, artCtx, type FurnDef, type SeatDef } from '../art/furniture';
+import { orbitAngle, orbitAt, orbitOf, orbitOpen, orbitStill } from '../art/furn/kit';
 import { CHALK_BOX, audience, butterflies, roomLight, theaterCurtains } from '../art/scenes';
 import type { PlaceDef } from '../data/places';
 import { G, toast } from '../game';
@@ -54,6 +55,17 @@ export class SceneView {
   /** The finger (or mouse) doing the current drag; other fingers are ignored. */
   private pid = -1;
   private vb = { x: 0, y: 0, w: 1600, h: 900 };
+  /** Wide places scroll sideways: camX is the world x at the middle of the screen. */
+  private camX = 800;
+  private scale = 1;
+  private pan: { sx: number; cam0: number; lastX: number; lastT: number; v: number; moved: boolean } | null = null;
+  private edgeRaf = 0;
+  private lastPtr = { x: 0, y: 0 };
+  private panBtns: HTMLButtonElement[] = [];
+  /** Where each wide place was scrolled to, so coming back from the closet keeps your spot. */
+  private static cams = new Map<string, number>();
+  private riderTimer = 0;
+  private riderSig = '';
   private popup: HTMLDivElement;
   private popupTimer: number | null = null;
   private ro: ResizeObserver;
@@ -79,6 +91,20 @@ export class SceneView {
     this.popup = document.createElement('div');
     this.popup.className = 'scene-popup';
     this.root.append(this.svg, this.popup);
+    if (this.wide) {
+      this.camX = SceneView.cams.get(place.id) ?? 800;
+      this.panBtns = (['l', 'r'] as const).map((side) => {
+        const b = document.createElement('button');
+        b.className = `pan-btn ${side}`;
+        b.innerHTML = icon('back');
+        b.setAttribute('aria-label', side === 'l' ? 'Scroll left' : 'Scroll right');
+        b.addEventListener('pointerdown', (e) => e.stopPropagation());
+        b.addEventListener('click', () => this.panBy((side === 'l' ? -1 : 1) * this.vb.w * 0.7));
+        this.root.appendChild(b);
+        return b;
+      });
+      this.root.classList.add('wide');
+    }
     this.svg.addEventListener('pointerdown', this.onDown);
     this.ro = new ResizeObserver(() => this.layout());
     this.ro.observe(this.root);
@@ -87,6 +113,7 @@ export class SceneView {
     this.renderBg();
     this.renderAll();
     this.idleTimer = window.setInterval(() => this.idleMoment(), 2300);
+    this.riderTimer = window.setInterval(() => this.riderOrder(), 200);
   }
 
   /** Every few seconds a friend does something on her own: glances, waves, twirls or hops. */
@@ -151,7 +178,9 @@ export class SceneView {
 
   destroy(): void {
     window.clearInterval(this.idleTimer);
+    window.clearInterval(this.riderTimer);
     window.clearTimeout(this.lookTimer);
+    cancelAnimationFrame(this.edgeRaf);
     this.ro.disconnect();
     window.removeEventListener('pointermove', this.onMove);
     window.removeEventListener('pointerup', this.onUp);
@@ -172,8 +201,67 @@ export class SceneView {
     const w = r.width / s;
     const h = r.height / s;
     const y = 450 - avail / s / 2 - topH / s;
+    this.scale = s;
     this.vb = { x: 800 - w / 2, y, w, h };
+    this.applyCam();
+  }
+
+  get worldW(): number {
+    return this.place.worldW ?? 1600;
+  }
+
+  get wide(): boolean {
+    return this.worldW > 1600;
+  }
+
+  private applyCam(): void {
+    const w = this.vb.w;
+    let lo = Math.max(800, -560 + w / 2);
+    let hi = Math.min(this.worldW - 800, this.worldW + 560 - w / 2);
+    if (hi < lo) lo = hi = this.worldW / 2;
+    if (!this.wide) lo = hi = 800;
+    this.camX = Math.max(lo, Math.min(hi, this.camX));
+    this.vb.x = this.camX - w / 2;
     this.svg.setAttribute('viewBox', `${this.vb.x.toFixed(1)} ${this.vb.y.toFixed(1)} ${this.vb.w.toFixed(1)} ${this.vb.h.toFixed(1)}`);
+    if (this.panBtns.length) {
+      this.panBtns[0].classList.toggle('hide', this.camX <= lo + 2);
+      this.panBtns[1].classList.toggle('hide', this.camX >= hi - 2);
+      SceneView.cams.set(this.place.id, this.camX);
+    }
+  }
+
+  /** Glides the view sideways by dx world units. */
+  panBy(dx: number): void {
+    this.hidePopup();
+    const from = this.camX;
+    sound.whoosh();
+    tween(520, (t) => {
+      this.camX = from + dx * (1 - (1 - t) ** 3);
+      this.applyCam();
+    });
+  }
+
+  /** While something is dragged near the left or right edge, the view scrolls along. */
+  private edgeScroll(): void {
+    if (!this.wide || this.edgeRaf) return;
+    const tick = () => {
+      const dr = this.drag;
+      if (!dr || dr.kind === 'chalk' || !dr.started) {
+        this.edgeRaf = 0;
+        return;
+      }
+      const r = this.root.getBoundingClientRect();
+      const zone = 70;
+      const dx = this.lastPtr.x < r.left + zone ? -(r.left + zone - this.lastPtr.x) : this.lastPtr.x > r.right - zone ? this.lastPtr.x - (r.right - zone) : 0;
+      if (dx) {
+        const before = this.camX;
+        this.camX += (Math.sign(dx) * Math.min(zone, Math.abs(dx)) * 0.2) / this.scale;
+        this.applyCam();
+        if (this.camX !== before) this.dragTo(dr, this.lastPtr.x, this.lastPtr.y);
+      }
+      this.edgeRaf = requestAnimationFrame(tick);
+    };
+    this.edgeRaf = requestAnimationFrame(tick);
   }
 
   // ---------------- drawing ----------------
@@ -217,6 +305,40 @@ export class SceneView {
     return this.dolls().find((d) => d.seat && d.seat.uid === it.uid && d.seat.i === i);
   }
 
+  /** Switched on? Rides start on and keep going until tapped. */
+  private isOn(it: PlacedItem, def: FurnDef): boolean {
+    if (def.animWhenUsed) return this.inUse(it);
+    return def.defaultOn ? it.on !== false : !!it.on;
+  }
+
+  /** Is this seat moving right now? */
+  private seatMoving(it: PlacedItem): boolean {
+    const def = FURN_BY_ID[it.def];
+    return !def.toggle || this.isOn(it, def);
+  }
+
+  /** Where a seat is at this moment (moving seats are found where they are, not where they started). */
+  private seatNow(it: PlacedItem, s: SeatDef): { x: number; y: number } {
+    const a = s.anim;
+    if (!a || !this.seatMoving(it) || (a.kind !== 'orbit' && a.kind !== 'wheel')) return this.seatWorld(it, s);
+    const time = this.svg.getCurrentTime();
+    let lx = s.x;
+    let ly = s.y;
+    if (a.kind === 'orbit') {
+      const o = orbitOf(a);
+      const p = orbitAt(o, orbitAngle(o, time));
+      lx = p.x;
+      ly = p.y;
+    } else {
+      const deg = (a.amp >= 0 ? 1 : -1) * 360 * (((time + (a.phase ?? 0)) / a.dur) % 1);
+      const r = (deg * Math.PI) / 180;
+      const [cx, cy] = a.pivot;
+      lx = cx + (s.x - cx) * Math.cos(r) - (s.y - cy) * Math.sin(r);
+      ly = cy + (s.x - cx) * Math.sin(r) + (s.y - cy) * Math.cos(r);
+    }
+    return { x: it.x + (it.flip ? -lx : lx) * k(it), y: it.y + ly * k(it) };
+  }
+
   private inUse(it: PlacedItem): boolean {
     const def = FURN_BY_ID[it.def];
     return !!def.animWhenUsed && (def.seats ?? []).some((_, i) => this.seatOwner(it, i));
@@ -226,7 +348,7 @@ export class SceneView {
     const def = FURN_BY_ID[it.def];
     if (!def) return;
     const color = it.color ?? def.color ?? '#ff9ec7';
-    const on = def.animWhenUsed ? this.inUse(it) : !!it.on;
+    const on = this.isOn(it, def);
     const flip = it.flip ? ' transform="scale(-1 1)"' : '';
     let el = this.els.get('i' + it.uid);
     if (!el) {
@@ -282,7 +404,12 @@ export class SceneView {
       y = w.y;
       d.x = x;
       d.y = y;
-      if (s.anim) {
+      if (s.anim && s.anim.kind === 'orbit') {
+        // Carousels: ride round with the horse (or wait at its spot while the ride is stopped).
+        const o = orbitOf(s.anim);
+        wrapOpen = this.seatMoving(it) ? orbitOpen(o, it.flip ? -1 : 1, k(it), 0.6) : orbitStill(o, 0.6);
+        wrapClose = '</g></g>';
+      } else if (s.anim && this.seatMoving(it)) {
         const sg = it.flip ? -1 : 1;
         const spline = 'calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"';
         const begin = `begin="${-(s.anim.phase ?? 0)}s"`;
@@ -351,12 +478,29 @@ export class SceneView {
       const d = G.s.dolls.find((x) => x.id === el.dataset.doll);
       if (!d) return 0;
       const si = this.seatOf(d);
-      if (si) return this.itemKey(si.it) + 0.3;
+      if (si) return this.itemKey(si.it) + 0.3 + this.riderDepth(si.it, si.s) * 0.01;
       return d.y + 0.1;
     }
     const it = this.sc.items.find((i) => String(i.uid) === el.dataset.uid);
     if (!it) return 0;
     return this.itemKey(it) + (el.classList.contains('front') ? 0.4 : 0);
+  }
+
+  /** 0 at the back of a carousel, 1 at the front (riders in front are drawn over riders behind). */
+  private riderDepth(it: PlacedItem, s: SeatDef): number {
+    if (s.anim?.kind !== 'orbit' || !this.seatMoving(it)) return 0.5;
+    return (Math.cos(orbitAngle(orbitOf(s.anim), this.svg.getCurrentTime())) + 1) / 2;
+  }
+
+  /** Re-sorts carousel riders as they swap between the front and back of the ride. */
+  private riderOrder(): void {
+    let sig = '';
+    for (const d of this.dolls()) {
+      const si = this.seatOf(d);
+      if (si?.s.anim?.kind === 'orbit') sig += Math.round(this.riderDepth(si.it, si.s) * 6);
+    }
+    if (sig && sig !== this.riderSig && !(this.drag && 'started' in this.drag && this.drag.started)) this.sort();
+    this.riderSig = sig;
   }
 
   private itemKey(it: PlacedItem, depth = 0): number {
@@ -393,7 +537,7 @@ export class SceneView {
 
   private clampX(x: number): number {
     const lo = Math.max(-280, this.vb.x + 50);
-    const hi = Math.min(1880, this.vb.x + this.vb.w - 50);
+    const hi = Math.min(this.worldW + 280, this.vb.x + this.vb.w - 50);
     return Math.max(lo, Math.min(hi, x));
   }
 
@@ -438,7 +582,7 @@ export class SceneView {
 
   /** Drops something from the tray into the middle of the scene (for a plain tap). */
   dropIn(kind: 'item' | 'doll', id: string): void {
-    const x = this.clampX(700 + Math.random() * 200);
+    const x = this.clampX(this.camX - 100 + Math.random() * 200);
     if (kind === 'item') {
       const def = FURN_BY_ID[id];
       const y = def.mount === 'wall' ? 200 : this.place.floorTop - 40;
@@ -517,12 +661,27 @@ export class SceneView {
       const it = this.sc.items.find((x) => String(x.uid) === itemEl.dataset.uid);
       if (!it) return;
       this.drag = { kind: 'item', it, ox: it.x - p.x, oy: it.y - p.y, started: false, sx: e.clientX, sy: e.clientY, fromTray: false, deps: [] };
+    } else if (this.wide) {
+      this.pan = { sx: e.clientX, cam0: this.camX, lastX: e.clientX, lastT: performance.now(), v: 0, moved: false };
     } else return;
     e.preventDefault();
     this.listen();
   };
 
   private onMove = (e: PointerEvent) => {
+    if (this.pan && e.pointerId === this.pid) {
+      const pn = this.pan;
+      if (!pn.moved && Math.abs(e.clientX - pn.sx) < 8) return;
+      if (!pn.moved) this.hidePopup();
+      pn.moved = true;
+      const now = performance.now();
+      pn.v = (e.clientX - pn.lastX) / Math.max(1, now - pn.lastT);
+      pn.lastX = e.clientX;
+      pn.lastT = now;
+      this.camX = pn.cam0 - (e.clientX - pn.sx) / this.scale;
+      this.applyCam();
+      return;
+    }
     const dr = this.drag;
     if (!dr || e.pointerId !== this.pid) return;
     const p = this.toWorld(e.clientX, e.clientY);
@@ -543,6 +702,13 @@ export class SceneView {
       dr.started = true;
       this.startDrag(dr);
     }
+    this.lastPtr = { x: e.clientX, y: e.clientY };
+    this.edgeScroll();
+    this.dragTo(dr, e.clientX, e.clientY);
+  };
+
+  private dragTo(dr: Exclude<Drag, { kind: 'chalk' }>, cx: number, cy: number): void {
+    const p = this.toWorld(cx, cy);
     const x = this.clampX(p.x + dr.ox);
     const y = Math.max(this.vb.y + 60, Math.min(this.vb.y + this.vb.h + 200, p.y + dr.oy));
     this.lookAt(x, y - 60, dr.kind === 'doll' ? dr.d : undefined);
@@ -562,8 +728,8 @@ export class SceneView {
       this.els.get('d' + dr.d.id)?.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
     }
     const tray = this.hooks.trayRect();
-    this.root.classList.toggle('over-tray', !!tray && e.clientY > tray.top + 10);
-  };
+    this.root.classList.toggle('over-tray', !!tray && cy > tray.top + 10);
+  }
 
   private startDrag(dr: Exclude<Drag, { kind: 'chalk' }>): void {
     this.hooks.onDragState(true);
@@ -582,6 +748,24 @@ export class SceneView {
 
   private onUp = (e: PointerEvent) => {
     if (e.pointerId !== this.pid) return;
+    if (this.pan) {
+      const pn = this.pan;
+      this.pan = null;
+      this.unlisten();
+      // a flick keeps gliding for a moment
+      let v = performance.now() - pn.lastT < 80 ? pn.v : 0;
+      if (Math.abs(v) > 0.1) {
+        const glide = () => {
+          if (this.pan || this.drag || Math.abs(v) < 0.02) return;
+          this.camX -= (v * 16) / this.scale;
+          v *= 0.92;
+          this.applyCam();
+          requestAnimationFrame(glide);
+        };
+        requestAnimationFrame(glide);
+      }
+      return;
+    }
     const dr = this.drag;
     this.unlisten();
     this.drag = null;
@@ -721,7 +905,7 @@ export class SceneView {
       const def = FURN_BY_ID[it.def];
       (def.seats ?? []).forEach((s, i) => {
         if (this.seatOwner(it, i)) return;
-        const w = this.seatWorld(it, s);
+        const w = this.seatNow(it, s);
         const dist = Math.hypot(w.x - d.x, w.y - hipY);
         const reach = s.pose === 'sleep' ? 170 : 130;
         if (dist < reach && (!best || dist < best.dist)) best = { it, i, s, dist };
@@ -780,7 +964,7 @@ export class SceneView {
     el.querySelector('ellipse')?.setAttribute('opacity', '0');
     sound.whoosh();
     this.setExprSilently(d, 'happy');
-    tween(1300, (t) => {
+    tween(Math.max(1300, Math.min(4800, total * 1.6)), (t) => {
       const e = t * t * (1.4 - 0.4 * t);
       const L = e * total;
       let i = 1;
@@ -894,8 +1078,9 @@ export class SceneView {
     else if (def.sfx === 'squeak') sound.squeak();
     else if (def.sfx === 'ding' && !def.toggle) sound.ding();
     if (def.toggle) {
-      it.on = !it.on;
+      it.on = !this.isOn(it, def);
       this.syncItem(it);
+      for (const d of this.dollsOn(it)) this.syncDoll(d);
       if (it.on) {
         if (def.sfx === 'music') sound.tune();
         else if (def.sfx === 'ding') sound.ding();
@@ -960,7 +1145,7 @@ export class SceneView {
   private spawnFrom(it: PlacedItem, def: FurnDef): void {
     const list = def.spawn!;
     const id = list[Math.floor(Math.random() * list.length)];
-    const dir = it.x > 800 ? -1 : 1;
+    const dir = it.x > this.camX ? -1 : 1;
     const p = this.addItem(id, this.clampX(it.x + dir * (def.w / 2 + 50)), it.y - def.h * 0.6);
     if (!p) return;
     sound.pop();

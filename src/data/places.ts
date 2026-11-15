@@ -22,6 +22,8 @@ export interface PlaceDef {
   outdoor?: boolean;
   tray: FurnCat[];
   initial: { def: string; x: number; y: number; flip?: boolean; on?: boolean }[];
+  /** Places wider than one screen (1600) scroll sideways. */
+  worldW?: number;
   bg: (season: Season, sc: SceneState, extra: { curtains?: boolean; lights?: boolean }) => string;
 }
 
@@ -130,6 +132,21 @@ const townPlace = (id: string, name: string, cat: FurnCat, initial: Start[]): Pl
   tray: [cat, ...HOME_TRAY], initial, bg: (s, sc) => townInteriorArt(id, s, sc),
 });
 
+/** The theme park scrolls across almost three screens; rides get room to breathe. */
+export const PARK_W = 4400;
+export const PARK_LAYOUT: PlaceDef['initial'] = [
+  { def: 'f-parkentrance-sweet', x: 330, y: 690 }, { def: 'f-ticketbooth-park-sweet', x: 790, y: 700 }, { def: 'f-carousel-sweet', x: 1260, y: 735 },
+  { def: 'f-parklamp-sweet', x: 1640, y: 650 }, { def: 'f-cottoncandy-sweet', x: 1700, y: 872 }, { def: 'f-ferriswheel-sweet', x: 2080, y: 690 },
+  { def: 'f-parkbench-sweet', x: 2190, y: 886 }, { def: 'f-droptower-sweet', x: 2760, y: 650 }, { def: 'f-teacups-sweet', x: 2620, y: 872 },
+  { def: 'f-swingride-sweet', x: 3260, y: 700 }, { def: 'f-parklamp-sweet', x: 3620, y: 650 }, { def: 'f-popcorncart-sweet', x: 3640, y: 878 },
+  { def: 'f-coaster-sweet', x: 4060, y: 700 }, { def: 'f-balloonstand-sweet', x: 620, y: 884 },
+];
+/** The first theme park layout, crammed into one screen (saves made with it get spread out). */
+export const OLD_PARK_LAYOUT = [
+  { def: 'f-ferriswheel-sweet', x: 300, y: 690 }, { def: 'f-coaster-sweet', x: 1240, y: 700 }, { def: 'f-carousel-sweet', x: 760, y: 760 },
+  { def: 'f-teacups-sweet', x: 300, y: 870 }, { def: 'f-cottoncandy-sweet', x: 1500, y: 840 }, { def: 'f-balloonstand-sweet', x: 1050, y: 870 },
+];
+
 const TOWN_PLACES: Record<string, PlaceDef> = {
   library: townPlace('library', 'Library', 'library', [
     { def: 'f-storyrug-sweet', x: 800, y: 830 }, { def: 'f-bookshelf-tall-sweet', x: 140, y: 700 }, { def: 'f-bookshelf-tall-sweet', x: 360, y: 700 },
@@ -165,11 +182,8 @@ const TOWN_PLACES: Record<string, PlaceDef> = {
   ]),
   themepark: {
     id: 'themepark', name: 'Theme Park', building: 'themepark', floorTop: 600, floorBottom: 890, decor: 'outdoor', outdoor: true, floor: 'floor-stone-1',
-    tray: ['rides', 'outdoor', ...HOME_TRAY], bg: (s, sc) => themeParkArt(s, sc),
-    initial: [
-      { def: 'f-ferriswheel-sweet', x: 300, y: 690 }, { def: 'f-coaster-sweet', x: 1240, y: 700 }, { def: 'f-carousel-sweet', x: 760, y: 760 },
-      { def: 'f-teacups-sweet', x: 300, y: 870 }, { def: 'f-cottoncandy-sweet', x: 1500, y: 840 }, { def: 'f-balloonstand-sweet', x: 1050, y: 870 },
-    ],
+    worldW: PARK_W, tray: ['rides', 'outdoor', ...HOME_TRAY], bg: (s, sc) => themeParkArt(s, sc, PARK_W),
+    initial: PARK_LAYOUT,
   },
 };
 

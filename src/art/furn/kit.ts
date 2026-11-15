@@ -29,8 +29,11 @@ export interface SeatDef {
    * - 'bounce': move up amp units and back (trampolines, carousel horses)
    * - 'sway': slide left/right by amp units (bumper cars)
    * - 'wheel': go all the way round pivot while staying upright (ferris wheels, teacups); negative amp = backwards
+   * - 'orbit': ride a flat circle seen from the front (carousels): round an ellipse of radius amp by ry
+   *   about pivot, shrinking and turning around at the back; lift bobs up and down twice per lap.
+   *   The seat's x, y is where the rider is at time 0 (see orbitAt).
    */
-  anim?: { pivot: [number, number]; amp: number; dur: number; phase?: number; kind?: 'rotate' | 'bounce' | 'sway' | 'wheel' };
+  anim?: { pivot: [number, number]; amp: number; dur: number; phase?: number; kind?: 'rotate' | 'bounce' | 'sway' | 'wheel' | 'orbit'; ry?: number; lift?: number };
   /** For slides: where the rider travels, relative to the item. */
   path?: [number, number][];
 }
@@ -56,6 +59,8 @@ export interface FurnDef {
   sfx?: 'note' | 'boing' | 'squeak' | 'ding' | 'music';
   /** Seats animate only while someone sits there. */
   animWhenUsed?: boolean;
+  /** Toggle items that start switched on (rides keep running until tapped). */
+  defaultOn?: boolean;
   /** Catalog section, e.g. "Bunk Beds". */
   group?: string;
   /** Design collection id from FURN_STYLES, e.g. "princess". */
@@ -122,3 +127,63 @@ export const FURN_STYLE_BY_ID: Record<string, FurnStyle> = Object.fromEntries(FU
 
 /** Price for the nth design of a furniture type: the first two are free, then it climbs. */
 export const stylePrice = (i: number, base = 20, step = 8, cap = 180) => (i < 2 ? 0 : Math.min(cap, base + (i - 2) * step));
+
+// ---------------- orbit motion (carousels) ----------------
+/** Orbit seat motion; see SeatDef.anim. */
+export interface Orbit { cx: number; cy: number; rx: number; ry: number; dur: number; phase: number; lift: number }
+export const orbitOf = (a: NonNullable<SeatDef['anim']>): Orbit =>
+  ({ cx: a.pivot[0], cy: a.pivot[1], rx: a.amp, ry: a.ry ?? a.amp * 0.18, dur: a.dur, phase: a.phase ?? 0, lift: a.lift ?? 0 });
+const ORBIT_STEPS = 48;
+/**
+ * Where a rider is at angle t (radians; 0 = front middle, moving right): position, and a scale that
+ * shrinks toward the back and narrows (then mirrors) at the sides as the rider turns around.
+ * minW keeps the rider from going paper thin at the sides.
+ */
+export function orbitAt(o: Orbit, t: number, minW = 0.3): { x: number; y: number; sx: number; sy: number; front: boolean } {
+  const c = Math.cos(t);
+  const depth = 0.78 + 0.22 * c;
+  const turn = (c >= 0 ? 1 : -1) * Math.max(minW, Math.abs(c));
+  return { x: o.cx + o.rx * Math.sin(t), y: o.cy + o.ry * c, sx: turn * depth, sy: depth, front: c >= 0 };
+}
+/** Angle at document time `time` seconds (SMIL begin is -phase, so time 0 is already phase seconds in). */
+export const orbitAngle = (o: Orbit, time: number) => (((time + o.phase) / o.dur) % 1) * Math.PI * 2;
+/**
+ * Opening tags for riding the orbit, relative to the time-0 spot: `move` goes round the ellipse,
+ * `lift` bobs, `scale` shrinks and turns. Each opens one <g>. mirror = -1 for a flipped item and
+ * k scales the distances.
+ */
+export function orbitParts(o: Orbit, mirror = 1, k = 1, minW = 0.3): { move: string; lift: string; scale: string } {
+  const rest = orbitAt(o, orbitAngle(o, 0), minW);
+  const tv: string[] = [];
+  const sv: string[] = [];
+  const lv: string[] = [];
+  for (let i = 0; i <= ORBIT_STEPS; i++) {
+    const p = orbitAt(o, (i / ORBIT_STEPS) * Math.PI * 2, minW);
+    tv.push(`${f(mirror * (p.x - rest.x) * k)} ${f((p.y - rest.y) * k)}`);
+    sv.push(`${p.sx.toFixed(3)} ${p.sy.toFixed(3)}`);
+    lv.push(`0 ${f(-o.lift * k * (0.5 - 0.5 * Math.cos((i / ORBIT_STEPS) * Math.PI * 4)))}`);
+  }
+  const t = `dur="${o.dur}s" begin="${f(-o.phase)}s" repeatCount="indefinite"`;
+  return {
+    move: `<g><animateTransform attributeName="transform" type="translate" values="${tv.join(';')}" ${t}/>`,
+    lift: `<g><animateTransform attributeName="transform" type="translate" values="${lv.join(';')}" ${t}/>`,
+    scale: `<g><animateTransform attributeName="transform" type="scale" values="${sv.join(';')}" ${t}/>`,
+  };
+}
+/** All three parts of orbitParts; close with orbitClose. */
+export function orbitOpen(o: Orbit, mirror = 1, k = 1, minW = 0.3): string {
+  const p = orbitParts(o, mirror, k, minW);
+  return p.move + p.lift + p.scale;
+}
+export const orbitClose = '</g></g></g>';
+/** The same thing standing still at its time-0 spot (for a stopped ride). */
+export function orbitStill(o: Orbit, minW = 0.3): string {
+  const p = orbitAt(o, orbitAngle(o, 0), minW);
+  return `<g><g><g transform="scale(${p.sx.toFixed(3)} ${p.sy.toFixed(3)})">`;
+}
+/** Shows its contents only while the rider is on the front (show = 'front') or back half. */
+export function orbitHalf(o: Orbit, show: 'front' | 'back'): string {
+  // angle 0 is the front middle, so the front half is the first and last quarter of a lap
+  const vals = show === 'front' ? '1;0;1' : '0;1;0';
+  return `<animate attributeName="opacity" values="${vals}" keyTimes="0;0.25;0.75" calcMode="discrete" dur="${o.dur}s" begin="${f(-o.phase)}s" repeatCount="indefinite"/>`;
+}

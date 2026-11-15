@@ -40,7 +40,10 @@ pass, updates the live game.
   - **Grocery shop:** fill the basket from a shopping list.
   - **Hospital:** be the doctor and help patients feel better.
   - **Car shop:** wash, rinse, shine and paint a car, then park it in the backyard.
-  - **Hotel:** order room service. **Theme park:** sit friends on rides and watch them go.
+  - **Hotel:** order room service.
+  - **Theme park:** a big park that scrolls sideways (swipe, or tap the arrows). The rides run on their
+    own; tap one to stop or start it. Drop friends on a seat to ride along: the carousel turns, the
+    Ferris wheel goes round, and the coaster and water slide zoom them to the bottom.
 - **Salon nails:** paint, decorate and dry nails; the manicure shows on the doll.
 - **Sports:** basketball and soccer penalty kicks at the playground.
 - **Music:** piano, xylophone, guitar, harp, violin, flute, trumpet and drums at the theater.

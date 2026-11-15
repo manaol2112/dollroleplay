@@ -5,7 +5,8 @@ import { WEAR } from '../src/art/wear';
 import { townLayers } from '../src/art/town';
 import { CHALLENGES } from '../src/data/challenges';
 import { baseLook, randomLook, starterLooks } from '../src/data/looks';
-import { PLACES } from '../src/data/places';
+import { OLD_PARK_LAYOUT, PARK_LAYOUT, PLACES } from '../src/data/places';
+import { orbitAngle, orbitAt, orbitOf, orbitOpen } from '../src/art/furn/kit';
 import { makeQuestion } from '../src/data/quiz';
 import { BLACK_KEYS, SONGS, WHITE_KEYS } from '../src/data/songs';
 import {
@@ -102,6 +103,37 @@ describe('art', () => {
   });
 });
 
+describe('theme park rides', () => {
+  it('every ride runs on its own until tapped', () => {
+    const rides = FURNITURE.filter((f) => /^f-(ferriswheel|carousel|teacups|bumpercars|coaster|droptower|swingride|pirateship|waterslide|kiddietrain|balloonride)-/.test(f.id));
+    expect(rides.length).toBeGreaterThan(40);
+    for (const r of rides) expect(r.toggle && r.defaultOn, r.id).toBe(true);
+  });
+  it('carousel horses go all the way round, and riders follow the same path', () => {
+    const car = FURNITURE.find((f) => f.id === 'f-carousel-sweet')!;
+    const seats = car.seats!;
+    expect(seats).toHaveLength(6);
+    for (const s of seats) {
+      expect(s.anim?.kind).toBe('orbit');
+      const o = orbitOf(s.anim!);
+      // the seat sits where its horse is at time 0
+      const p = orbitAt(o, orbitAngle(o, 0));
+      expect(Math.abs(p.x - s.x)).toBeLessThan(1);
+      expect(Math.abs(p.y - s.y)).toBeLessThan(1);
+      // and a lap later it is back in the same place
+      const q = orbitAt(o, orbitAngle(o, o.dur));
+      expect(Math.abs(q.x - p.x)).toBeLessThan(1e-6);
+    }
+    // the horses really move: spread across the front and back, left and right
+    const xs = seats.map((s) => s.x);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(300);
+    // running art animates the orbit; stopped art doesn't
+    expect(car.art('#ff9ec7', true)).toContain('animateTransform');
+    expect(car.art('#ff9ec7', false)).not.toContain('type="translate" values');
+    expect(orbitOpen(orbitOf(seats[0].anim!))).not.toMatch(bad);
+  });
+});
+
 describe('thumbnails', () => {
   it('strips animations from thumbnails', async () => {
     const { still } = await import('../src/ui/dom');
@@ -141,6 +173,29 @@ describe('saving', () => {
     expect(new Set(s.dolls.map((d) => d.id)).size).toBe(s.dolls.length);
     const again = parseState(JSON.stringify(s))!;
     expect(again.dolls.length).toBe(s.dolls.length);
+  });
+
+  it('spreads out a theme park saved with the old one-screen layout', () => {
+    const s = newState();
+    s.scenes.themepark.items = OLD_PARK_LAYOUT.map((o, i) => ({ uid: 9000 + i, def: o.def, x: o.x, y: o.y }));
+    s.dolls[0].place = 'themepark';
+    s.dolls[0].seat = { uid: 9000, i: 0 };
+    const raw = JSON.parse(JSON.stringify(s));
+    delete raw.parkV;
+    const fixed = parseState(JSON.stringify(raw))!;
+    expect(fixed.scenes.themepark.items.map((i) => i.def)).toEqual(PARK_LAYOUT.map((o) => o.def));
+    expect(Math.max(...fixed.scenes.themepark.items.map((i) => i.x))).toBeGreaterThan(3000);
+    expect(fixed.dolls[0].seat).toBeNull();
+    const uids = Object.values(fixed.scenes).flatMap((sc) => sc.items.map((i) => i.uid));
+    expect(new Set(uids).size).toBe(uids.length);
+    // a park the player rearranged keeps their things; untouched rides still move to the new spots
+    const mine = JSON.parse(JSON.stringify(raw));
+    mine.scenes.themepark.items.push({ uid: 9100, def: 'f-parkbench-sweet', x: 500, y: 860 });
+    const kept = parseState(JSON.stringify(mine))!;
+    expect(kept.scenes.themepark.items).toHaveLength(OLD_PARK_LAYOUT.length + 1);
+    expect(kept.scenes.themepark.items.find((i) => i.def === 'f-coaster-sweet')!.x).toBe(PARK_LAYOUT.find((o) => o.def === 'f-coaster-sweet')!.x);
+    // and it only happens once
+    expect(parseState(JSON.stringify(fixed))!.scenes.themepark.items).toEqual(fixed.scenes.themepark.items);
   });
 
   it('rejects junk and repairs damaged saves', () => {

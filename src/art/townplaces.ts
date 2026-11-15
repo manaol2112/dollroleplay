@@ -112,21 +112,50 @@ export function townInteriorArt(placeId: string, s: Season, sc: SceneState): str
   return g;
 }
 
-/** The theme park: open sky, distant rides on the hills, and a ground the player can restyle. */
-export function themeParkArt(s: Season, sc: SceneState): string {
+/** The theme park: open sky across the whole wide park, a fairytale castle and rides far away on the
+ * hills, bunting overhead and a ground the player can restyle. W is the park's width. */
+export function themeParkArt(s: Season, sc: SceneState, W = 1600): string {
   const floor = FLOOR_BY_ID[sc.floor ?? 'floor-stone-1'] ?? FLOOR_BY_ID['floor-stone-1'];
-  let g = landscape(s, 520, { trees: [-240, 1840] });
-  // far-away coaster track and flags for depth
-  g += P('M-200 470 C100 300 260 300 420 440 C560 560 700 260 880 300 C1040 340 1100 470 1300 420 C1500 370 1600 300 1800 360', 'none', 'stroke="#ff9ec7" stroke-width="10" opacity="0.45"');
-  for (let x = -150; x < 1800; x += 90) g += R(x, 380 + Math.sin(x / 120) * 40, 5, 160, 2, '#ff9ec7', 'opacity="0.35"');
-  for (let i = 0; i < 18; i++) {
-    const x = -200 + i * 120;
-    const y = 120 + Math.sin(i * 0.6) * 20;
-    g += P(`M${x} ${y} L${x + 60} ${y + 10} L${x + 30} ${y + 46}Z`, ['#ff7eb6', '#ffd36b', '#7cc8ff', '#7fe0b0', '#c99bff'][i % 5]);
+  const x0 = -600;
+  const x1 = W + 600;
+  const trees: number[] = [];
+  for (let x = -240; x < x1; x += 520 + ((x * 7) % 260)) trees.push(x);
+  let g = landscape(s, 520, { trees, span: [x0, x1], sunX: 1340 });
+  // far-away castle on the hill in the middle of the park
+  const cx = W / 2;
+  const castle = (x: number, y: number, w: number, h: number, roof: string) =>
+    R(x - w / 2, y - h, w, h, 4, '#f6e8ff') + P(`M${x - w / 2 - 8} ${y - h} L${x} ${y - h - w * 1.1} L${x + w / 2 + 8} ${y - h}Z`, roof) +
+    P(`M${x} ${y - h - w * 1.1} l0 -26 l22 8 l-22 8`, '#ff7eb6') + R(x - 6, y - h * 0.62, 12, 18, 6, '#c9a6ff');
+  g += `<g opacity="0.75">` + castle(cx - 120, 470, 60, 170, '#c99bff') + castle(cx + 120, 470, 60, 170, '#c99bff') + castle(cx - 60, 470, 70, 230, '#ff9ec7') + castle(cx + 60, 470, 70, 230, '#ff9ec7') +
+    castle(cx, 470, 100, 300, '#b28aff') + R(cx - 160, 400, 320, 72, 6, '#f6e8ff') + R(cx - 30, 420, 60, 52, 30, '#c9a6ff') + `</g>`;
+  // far-away coaster track and flags, repeated along the park
+  for (let off = 0; off < W; off += 2200) {
+    g += P(`M${off - 200} 470 C${off + 100} 300 ${off + 260} 300 ${off + 420} 440 C${off + 560} 560 ${off + 700} 260 ${off + 880} 300 C${off + 1040} 340 ${off + 1100} 470 ${off + 1300} 420`, 'none', 'stroke="#ff9ec7" stroke-width="10" opacity="0.4"');
+    for (let x = off - 150; x < off + 1300; x += 90) g += R(x, 380 + Math.sin(x / 120) * 40, 5, 160, 2, '#ff9ec7', 'opacity="0.3"');
   }
-  g += P('M-200 120 Q800 200 1800 120', 'none', 'stroke="#6b5a6b" stroke-width="2"');
-  g += picketFence(600, -600, 2200, sc.trim ?? '#ffffff');
-  g += floorArt(floor, 596);
-  if (s === 'winter') for (let i = 0; i < 30; i++) g += `<ellipse cx="${((i * 397) % 2800) - 600}" cy="${620 + ((i * 131) % 360)}" rx="40" ry="9" fill="#ffffff" opacity="0.85"/>`;
+  // hot air balloons drifting over the park
+  const balloon = (x: number, y: number, c: string, dur: number, i: number) =>
+    `<g><animateTransform attributeName="transform" type="translate" values="0 0;60 -24;0 0" dur="${dur}s" begin="${-i * 3}s" repeatCount="indefinite"/>` +
+    `<ellipse cx="${x}" cy="${y}" rx="38" ry="46" fill="${c}"/><path d="M${x - 38} ${y} Q${x} ${y + 12} ${x + 38} ${y}" fill="none" stroke="#fff" stroke-width="5" opacity="0.6"/>` +
+    `<ellipse cx="${x - 12}" cy="${y - 18}" rx="9" ry="14" fill="#fff" opacity="0.4"/><path d="M${x - 20} ${y + 40} L${x - 10} ${y + 68} M${x + 20} ${y + 40} L${x + 10} ${y + 68}" stroke="#8a7a8a" stroke-width="2"/>` +
+    R(x - 13, y + 66, 26, 18, 5, '#c98a5a') + `</g>`;
+  [[700, 250, '#ff7eb6'], [1900, 180, '#ffd36b'], [3000, 270, '#7cc8ff'], [3900, 200, '#c99bff']].forEach(([x, y, c], i) => {
+    if ((x as number) < x1) g += balloon(x as number, y as number, c as string, 14 + i * 3, i);
+  });
+  // bunting overhead, swagging between poles
+  const flagCols = ['#ff7eb6', '#ffd36b', '#7cc8ff', '#7fe0b0', '#c99bff'];
+  for (let px = -400, n = 0; px < x1; px += 600, n++) {
+    const sag = 60;
+    g += P(`M${px} 110 Q${px + 300} ${110 + sag * 2} ${px + 600} 110`, 'none', 'stroke="#6b5a6b" stroke-width="2"');
+    for (let i = 1; i < 10; i++) {
+      const t = i / 10;
+      const x = px + 600 * t;
+      const y = 110 + 2 * sag * 2 * t * (1 - t);
+      g += P(`M${f(x - 18)} ${f(y)} L${f(x + 18)} ${f(y)} L${f(x)} ${f(y + 36)}Z`, flagCols[(i + n) % 5]);
+    }
+  }
+  g += picketFence(600, x0, x1, sc.trim ?? '#ffffff');
+  g += floorArt(floor, 596, x0, x1);
+  if (s === 'winter') for (let i = 0; i < 30 * (W / 1600); i++) g += `<ellipse cx="${((i * 397) % (x1 - x0)) + x0}" cy="${620 + ((i * 131) % 360)}" rx="40" ry="9" fill="#ffffff" opacity="0.85"/>`;
   return g;
 }
